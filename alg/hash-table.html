@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
+    <title>赛博朋克哈希表演示</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/tailwindcss/3.4.1/tailwind.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tsparticles/engine@2/tsparticles.engine.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/tsparticles-engine/2.12.0/tsparticles.engine.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tsparticles/preset-links@2/tsparticles.preset.links.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/tsparticles-preset-links/2.12.0/tsparticles.preset.links.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Courier New', 'Courier', 'monospace', 'system-ui'] },
+                    colors: {
+                        cyber: {
+                            black: '#020205', dark: '#0a0a12', blue: '#00f3ff', pink: '#ff00ff',
+                            purple: '#bc13fe', yellow: '#ffee00', green: '#00ff9f',
+                        }
+                    },
+                    boxShadow: {
+                        'neon-blue': '0 0 5px #00f3ff, 0 0 10px #00f3ff',
+                        'neon-pink': '0 0 5px #ff00ff, 0 0 10px #ff00ff',
+                        'neon-green': '0 0 5px #00ff9f, 0 0 10px #00ff9f',
+                        'neon-purple': '0 0 5px #bc13fe, 0 0 10px #bc13fe',
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #020205; color: #e0e0e0; touch-action: manipulation; overscroll-behavior: none; }
+        #tsparticles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+
+        .sidebar-cyber { background: rgba(10, 10, 18, 0.92); backdrop-filter: blur(16px); border-top: 1px solid rgba(0, 243, 255, 0.3); box-shadow: 0 -5px 20px rgba(0, 243, 255, 0.1); }
+        @media (min-width: 768px) { .sidebar-cyber { border-top: none; border-right: 2px solid #00f3ff; } }
+
+        .btn-cyber { position: relative; background: transparent; border: 2px solid; transition: all 0.2s; font-family: 'Courier New', monospace; user-select: none; }
+        .btn-cyber-blue { border-color: #00f3ff; color: #00f3ff; text-shadow: 0 0 5px #00f3ff; }
+        .btn-cyber-blue:active { background: #00f3ff; color: #000; box-shadow: 0 0 20px #00f3ff; transform: scale(0.96); }
+        @media(hover: hover) { .btn-cyber-blue:hover { background: #00f3ff; color: #000; box-shadow: 0 0 20px #00f3ff; } }
+
+        .btn-cyber-pink { border-color: #ff00ff; color: #ff00ff; text-shadow: 0 0 5px #ff00ff; }
+        .btn-cyber-pink:active { background: #ff00ff; color: #000; box-shadow: 0 0 20px #ff00ff; transform: scale(0.96); }
+        @media(hover: hover) { .btn-cyber-pink:hover { background: #ff00ff; color: #000; box-shadow: 0 0 20px #ff00ff; } }
+
+        .btn-cyber-green { border-color: #00ff9f; color: #00ff9f; text-shadow: 0 0 5px #00ff9f; }
+        .btn-cyber-green:active { background: #00ff9f; color: #000; box-shadow: 0 0 20px #00ff9f; transform: scale(0.96); }
+        @media(hover: hover) { .btn-cyber-green:hover { background: #00ff9f; color: #000; box-shadow: 0 0 20px #00ff9f; } }
+
+        .btn-cyber-purple { border-color: #bc13fe; color: #bc13fe; text-shadow: 0 0 5px #bc13fe; }
+        .btn-cyber-purple:active { background: #bc13fe; color: #000; box-shadow: 0 0 20px #bc13fe; transform: scale(0.96); }
+        @media(hover: hover) { .btn-cyber-purple:hover { background: #bc13fe; color: #000; box-shadow: 0 0 20px #bc13fe; } }
+
+        canvas#hashCanvas { background: radial-gradient(circle at center, rgba(0,243,255,0.05) 0%, transparent 70%); }
+
+        .bucket-slot {
+            background: rgba(10, 10, 18, 0.9);
+            border: 2px solid rgba(0, 243, 255, 0.3);
+            transition: all 0.3s;
+            min-height: 50px;
+        }
+        .bucket-slot.active {
+            border-color: #ffee00;
+            box-shadow: 0 0 15px rgba(255, 238, 0, 0.5);
+        }
+        .bucket-slot.collision {
+            border-color: #ff00ff;
+            box-shadow: 0 0 15px rgba(255, 0, 255, 0.5);
+        }
+
+        .hash-item {
+            display: inline-block;
+            background: rgba(0, 255, 159, 0.2);
+            border: 1px solid #00ff9f;
+            padding: 4px 8px;
+            margin: 2px;
+            border-radius: 4px;
+            font-size: 10px;
+            color: #00ff9f;
+        }
+
+        ::-webkit-scrollbar { width: 4px; height: 4px;}
+        ::-webkit-scrollbar-track { background: #0a0a12; }
+        ::-webkit-scrollbar-thumb { background: #00f3ff; border-radius: 2px; }
+    </style>
+</head>
+<body class="overflow-hidden flex flex-col-reverse md:flex-row h-screen w-screen font-mono">
+
+    <div id="tsparticles"></div>
+
+    <!-- 左侧控制面板 -->
+    <aside class="w-full md:w-[380px] sidebar-cyber flex flex-col z-20 flex-shrink-0 h-[45%] md:h-full">
+        <div class="hidden md:block p-5 border-b border-cyber-blue/30 relative overflow-hidden">
+            <h1 class="text-3xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyber-blue to-cyber-purple drop-shadow-[0_0_10px_rgba(0,243,255,0.5)]">HASH_OS</h1>
+            <p class="text-[10px] text-cyber-blue/70 mt-1 tracking-[0.2em]">O(1) KEY-VALUE MAPPING</p>
+        </div>
+        <div class="md:hidden w-full pt-2 pb-1 flex justify-center"><div class="w-12 h-1 bg-cyber-blue/30 rounded-full"></div></div>
+
+        <div class="flex-1 overflow-y-auto p-4 space-y-4">
+
+            <!-- 哈希表配置 -->
+            <div class="space-y-2 border border-cyber-blue/30 p-3 bg-black/40">
+                <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">>> 哈希表配置</label>
+                <div class="flex gap-2 items-center">
+                    <label class="text-xs text-cyber-blue">容量:</label>
+                    <input type="number" id="table-size" value="10" min="5" max="20" class="flex-1 bg-cyber-black/50 border border-cyber-blue text-cyber-blue text-center py-1 text-sm outline-none">
+                    <button onclick="initHashTable()" class="btn-cyber btn-cyber-blue px-3 py-1 text-xs font-bold">初始化</button>
+                </div>
+                <div class="flex gap-2 items-center">
+                    <label class="text-xs text-cyber-pink">哈希函数:</label>
+                    <select id="hash-function" class="flex-1 bg-cyber-black/50 border border-cyber-pink text-cyber-pink py-1 px-2 text-xs outline-none">
+                        <option value="mod">取模法 (key % size)</option>
+                        <option value="mult">乘法法 (⌊size × (key × A mod 1)⌋)</option>
+                        <option value="string">字符串哈希 (Σ char × 31^i)</option>
+                    </select>
+                </div>
+                <div class="flex gap-2 items-center">
+                    <label class="text-xs text-cyber-purple">冲突解决:</label>
+                    <select id="collision-method" class="flex-1 bg-cyber-black/50 border border-cyber-purple text-cyber-purple py-1 px-2 text-xs outline-none">
+                        <option value="chaining">链地址法 (Chaining)</option>
+                        <option value="linear">线性探测 (Linear Probing)</option>
+                        <option value="quadratic">二次探测 (Quadratic Probing)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 键值对操作 -->
+            <div class="space-y-2">
+                <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">>> 操作 (Operations)</label>
+                <div class="flex gap-1">
+                    <input type="text" id="key-input" placeholder="键 (Key)" class="w-1/2 bg-cyber-black/50 border border-gray-600 text-white text-center py-2 text-sm outline-none focus:border-cyber-blue">
+                    <input type="text" id="value-input" placeholder="值 (Value)" class="w-1/2 bg-cyber-black/50 border border-gray-600 text-cyber-green text-center py-2 text-sm outline-none focus:border-cyber-green">
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="insertKV()" class="btn-cyber btn-cyber-green py-2 text-xs font-bold">
+                        插入 (Put)
+                    </button>
+                    <button onclick="searchKV()" class="btn-cyber btn-cyber-blue py-2 text-xs font-bold">
+                        查询 (Get)
+                    </button>
+                    <button onclick="deleteKV()" class="btn-cyber btn-cyber-pink py-2 text-xs font-bold">
+                        删除 (Del)
+                    </button>
+                </div>
+                <button onclick="clearHashTable()" class="btn-cyber border-gray-400 text-gray-300 w-full py-2 text-xs font-bold hover:border-white hover:text-white">
+                    清空哈希表
+                </button>
+            </div>
+
+            <!-- 测试数据 -->
+            <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-800">
+                <button onclick="loadExample1()" class="btn-cyber btn-cyber-purple py-2 text-xs font-bold">
+                    示例1: 数字
+                </button>
+                <button onclick="loadExample2()" class="btn-cyber btn-cyber-purple py-2 text-xs font-bold">
+                    示例2: 字符串
+                </button>
+            </div>
+
+            <!-- 统计信息 -->
+            <div class="space-y-2 pt-2 border-t border-gray-800">
+                <label class="text-[10px] text-cyber-yellow font-bold uppercase tracking-widest">>> 性能统计</label>
+                <div class="bg-black/60 border border-cyber-yellow/30 p-3 text-[10px] space-y-1">
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">元素数量:</span>
+                        <span id="stat-count" class="text-cyber-green font-bold">0</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">负载因子:</span>
+                        <span id="stat-load" class="text-cyber-blue font-bold">0.00</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">冲突次数:</span>
+                        <span id="stat-collision" class="text-cyber-pink font-bold">0</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">最长链长:</span>
+                        <span id="stat-maxchain" class="text-cyber-purple font-bold">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 算法说明 -->
+            <div class="space-y-2 pt-2 border-t border-gray-800">
+                <label class="text-[10px] text-cyber-pink font-bold uppercase tracking-widest">>> 哈希表原理</label>
+                <div id="algo-explanation" class="text-[10px] text-gray-300 bg-black/60 border border-cyber-pink/30 p-3 leading-relaxed">
+                    <p class="text-cyber-blue font-bold mb-1">哈希表 (Hash Table)：</p>
+                    <p>• <span class="text-cyber-green">时间复杂度</span>：平均 O(1) 查找/插入/删除</p>
+                    <p>• <span class="text-cyber-yellow">哈希函数</span>：将 key 映射到索引位置</p>
+                    <p>• <span class="text-cyber-pink">冲突处理</span>：链地址法 / 开放寻址法</p>
+                    <p>• <span class="text-cyber-purple">负载因子</span>：α = n / m，影响性能</p>
+                </div>
+            </div>
+
+            <!-- 日志 -->
+            <div class="hidden md:block flex-1 min-h-[100px] bg-black/80 border border-gray-700 p-2 text-[10px] overflow-y-auto font-mono relative">
+                <div class="absolute top-0 right-0 px-1 bg-cyber-blue text-black font-bold">LOG</div>
+                <div id="log-box" class="space-y-1 mt-4 text-gray-400">
+                    <div class="text-cyber-green">> Hash Table System Initialized.</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 右侧可视化区域 -->
+    <main class="flex-1 relative flex flex-col items-center overflow-hidden z-10 h-[55%] md:h-full">
+        <!-- 哈希表可视化 -->
+        <div class="w-full h-full relative overflow-auto">
+            <div class="absolute top-4 left-4 pointer-events-none">
+                <h2 class="text-2xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-500 opacity-50">HASH TABLE</h2>
+                <p id="hash-status" class="text-[10px] text-cyber-blue font-bold tracking-widest mt-1">CAPACITY: 10</p>
+            </div>
+
+            <!-- 哈希表槽位 -->
+            <div id="hash-buckets" class="p-8 mt-20 space-y-2 max-w-4xl mx-auto">
+                <!-- 动态生成 -->
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // --- 核心数据结构 ---
+        let hashTable = [];
+        let tableSize = 10;
+        let elementCount = 0;
+        let collisionCount = 0;
+        let isAnimating = false;
+
+        // --- 画布配置 ---
+        const canvas = document.getElementById('hashCanvas');
+
+        // 声音系统
+        let audioCtx = null;
+        function playSound(type) {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+
+            if (type === 'insert') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(1000, now); osc.frequency.exponentialRampToValueAtTime(1400, now + 0.12);
+                gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+                osc.start(now); osc.stop(now + 0.12);
+            } else if (type === 'found') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(1200, now); osc.frequency.exponentialRampToValueAtTime(1500, now + 0.15);
+                gain.gain.setValueAtTime(0.12, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now); osc.stop(now + 0.15);
+            } else if (type === 'delete') {
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(800, now); osc.frequency.linearRampToValueAtTime(400, now + 0.15);
+                gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now); osc.stop(now + 0.15);
+            } else if (type === 'collision') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(600, now); osc.frequency.linearRampToValueAtTime(300, now + 0.2);
+                gain.gain.setValueAtTime(0.08, now); gain.gain.linearRampToValueAtTime(0, now + 0.2);
+                osc.start(now); osc.stop(now + 0.2);
+            } else if (type === 'error') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, now); osc.frequency.linearRampToValueAtTime(100, now + 0.2);
+                gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.2);
+                osc.start(now); osc.stop(now + 0.2);
+            }
+        }
+
+        // 日志系统
+        function log(msg, type = 'normal') {
+            const logBox = document.getElementById('log-box');
+            if(!logBox) return;
+            const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+            let color = 'text-gray-400';
+            if (type === 'success') color = 'text-cyber-green';
+            if (type === 'error') color = 'text-cyber-pink';
+            if (type === 'warn') color = 'text-cyber-yellow';
+            if (type === 'info') color = 'text-cyber-blue';
+            const div = document.createElement('div');
+            div.innerHTML = `<span class="opacity-50">[${time}]</span> <span class="${color}">${msg}</span>`;
+            logBox.prepend(div);
+        }
+
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+        // --- 哈希函数 ---
+        function hashFunction(key) {
+            const method = document.getElementById('hash-function').value;
+
+            if (method === 'mod') {
+                // 简单取模法
+                const numKey = typeof key === 'string' ? stringToNumber(key) : parseInt(key);
+                return numKey % tableSize;
+            } else if (method === 'mult') {
+                // 乘法哈希
+                const A = 0.6180339887; // (√5 - 1) / 2
+                const numKey = typeof key === 'string' ? stringToNumber(key) : parseInt(key);
+                return Math.floor(tableSize * ((numKey * A) % 1));
+            } else if (method === 'string') {
+                // 字符串哈希
+                let hash = 0;
+                const str = String(key);
+                for (let i = 0; i < str.length; i++) {
+                    hash = (hash * 31 + str.charCodeAt(i)) % tableSize;
+                }
+                return hash;
+            }
+            return 0;
+        }
+
+        function stringToNumber(str) {
+            let num = 0;
+            for (let i = 0; i < str.length; i++) {
+                num += str.charCodeAt(i);
+            }
+            return num;
+        }
+
+        // --- 初始化哈希表 ---
+        function initHashTable() {
+            tableSize = parseInt(document.getElementById('table-size').value) || 10;
+            hashTable = Array(tableSize).fill(null).map(() => []);
+            elementCount = 0;
+            collisionCount = 0;
+
+            document.getElementById('hash-status').innerText = `CAPACITY: ${tableSize}`;
+            log(`哈希表已初始化，容量: ${tableSize}`, 'success');
+            renderHashTable();
+            updateStats();
+        }
+
+        // --- 渲染哈希表 ---
+        function renderHashTable() {
+            const container = document.getElementById('hash-buckets');
+            container.innerHTML = '';
+
+            for (let i = 0; i < tableSize; i++) {
+                const bucket = hashTable[i];
+                const div = document.createElement('div');
+                div.className = 'bucket-slot p-3 rounded';
+                div.id = `bucket-${i}`;
+
+                let content = `<div class="flex items-center justify-between mb-2">
+                    <span class="text-cyber-blue font-bold text-sm">Index ${i}</span>
+                    <span class="text-gray-500 text-xs">${bucket.length} item(s)</span>
+                </div>`;
+
+                if (bucket.length > 0) {
+                    content += '<div class="flex flex-wrap gap-1">';
+                    bucket.forEach(item => {
+                        content += `<div class="hash-item">${item.key}: ${item.value}</div>`;
+                    });
+                    content += '</div>';
+                } else {
+                    content += '<div class="text-gray-700 text-xs">empty</div>';
+                }
+
+                div.innerHTML = content;
+                container.appendChild(div);
+            }
+        }
+
+        // --- 插入操作 ---
+        async function insertKV() {
+            if (isAnimating) return;
+
+            const key = document.getElementById('key-input').value.trim();
+            const value = document.getElementById('value-input').value.trim();
+
+            if (!key || !value) {
+                log('Error: 键和值不能为空', 'error');
+                playSound('error');
+                return;
+            }
+
+            isAnimating = true;
+            const index = hashFunction(key);
+            log(`插入 {${key}: ${value}}, hash(${key}) = ${index}`, 'info');
+
+            // 高亮目标槽位
+            const bucket = document.getElementById(`bucket-${index}`);
+            bucket.classList.add('active');
+            await sleep(500);
+
+            const collisionMethod = document.getElementById('collision-method').value;
+
+            if (collisionMethod === 'chaining') {
+                // 链地址法
+                const existingIndex = hashTable[index].findIndex(item => item.key === key);
+                if (existingIndex >= 0) {
+                    // 更新已有键
+                    hashTable[index][existingIndex].value = value;
+                    log(`键 ${key} 已存在，更新值为 ${value}`, 'warn');
+                } else {
+                    // 新增键值对
+                    if (hashTable[index].length > 0) {
+                        collisionCount++;
+                        bucket.classList.add('collision');
+                        playSound('collision');
+                        log(`检测到冲突！使用链地址法`, 'warn');
+                        await sleep(500);
+                    }
+                    hashTable[index].push({ key, value });
+                    elementCount++;
+                    playSound('insert');
+                    log(`成功插入到 Index ${index}`, 'success');
+                }
+            } else {
+                // 开放寻址法 (线性探测或二次探测)
+                let probeIndex = index;
+                let probeCount = 0;
+                let inserted = false;
+
+                while (probeCount < tableSize) {
+                    if (hashTable[probeIndex].length === 0) {
+                        // 找到空槽
+                        hashTable[probeIndex].push({ key, value });
+                        elementCount++;
+                        playSound('insert');
+                        log(`成功插入到 Index ${probeIndex} (探测 ${probeCount} 次)`, 'success');
+                        inserted = true;
+                        break;
+                    } else {
+                        // 检查是否是更新
+                        const existing = hashTable[probeIndex].find(item => item.key === key);
+                        if (existing) {
+                            existing.value = value;
+                            log(`键 ${key} 已存在，更新值为 ${value}`, 'warn');
+                            inserted = true;
+                            break;
+                        }
+
+                        // 冲突，继续探测
+                        collisionCount++;
+                        playSound('collision');
+                        log(`Index ${probeIndex} 已占用，继续探测...`, 'warn');
+
+                        const oldBucket = document.getElementById(`bucket-${probeIndex}`);
+                        oldBucket.classList.add('collision');
+                        await sleep(300);
+                        oldBucket.classList.remove('collision', 'active');
+
+                        probeCount++;
+                        if (collisionMethod === 'linear') {
+                            probeIndex = (probeIndex + 1) % tableSize;
+                        } else if (collisionMethod === 'quadratic') {
+                            probeIndex = (index + probeCount * probeCount) % tableSize;
+                        }
+
+                        const newBucket = document.getElementById(`bucket-${probeIndex}`);
+                        newBucket.classList.add('active');
+                        await sleep(300);
+                    }
+                }
+
+                if (!inserted) {
+                    log('Error: 哈希表已满，无法插入', 'error');
+                    playSound('error');
+                }
+            }
+
+            bucket.classList.remove('active', 'collision');
+            renderHashTable();
+            updateStats();
+
+            // 清空输入
+            document.getElementById('key-input').value = '';
+            document.getElementById('value-input').value = '';
+
+            isAnimating = false;
+        }
+
+        // --- 查询操作 ---
+        async function searchKV() {
+            if (isAnimating) return;
+
+            const key = document.getElementById('key-input').value.trim();
+
+            if (!key) {
+                log('Error: 请输入要查询的键', 'error');
+                playSound('error');
+                return;
+            }
+
+            isAnimating = true;
+            const index = hashFunction(key);
+            log(`查询键 ${key}, hash(${key}) = ${index}`, 'info');
+
+            const bucket = document.getElementById(`bucket-${index}`);
+            bucket.classList.add('active');
+            await sleep(500);
+
+            const collisionMethod = document.getElementById('collision-method').value;
+
+            if (collisionMethod === 'chaining') {
+                const item = hashTable[index].find(item => item.key === key);
+                if (item) {
+                    playSound('found');
+                    log(`✓ 找到: {${key}: ${item.value}}`, 'success');
+                } else {
+                    playSound('error');
+                    log(`✗ 未找到键 ${key}`, 'error');
+                }
+            } else {
+                // 开放寻址法查找
+                let probeIndex = index;
+                let probeCount = 0;
+                let found = false;
+
+                while (probeCount < tableSize) {
+                    const item = hashTable[probeIndex].find(item => item.key === key);
+                    if (item) {
+                        playSound('found');
+                        log(`✓ 找到: {${key}: ${item.value}} at Index ${probeIndex}`, 'success');
+                        found = true;
+                        break;
+                    }
+
+                    if (hashTable[probeIndex].length === 0) {
+                        // 遇到空槽，停止
+                        break;
+                    }
+
+                    probeCount++;
+                    if (collisionMethod === 'linear') {
+                        probeIndex = (probeIndex + 1) % tableSize;
+                    } else if (collisionMethod === 'quadratic') {
+                        probeIndex = (index + probeCount * probeCount) % tableSize;
+                    }
+
+                    const oldBucket = document.getElementById(`bucket-${probeIndex - 1 >= 0 ? probeIndex - 1 : tableSize - 1}`);
+                    oldBucket.classList.remove('active');
+
+                    const newBucket = document.getElementById(`bucket-${probeIndex}`);
+                    newBucket.classList.add('active');
+                    await sleep(300);
+                }
+
+                if (!found) {
+                    playSound('error');
+                    log(`✗ 未找到键 ${key}`, 'error');
+                }
+            }
+
+            bucket.classList.remove('active');
+            isAnimating = false;
+        }
+
+        // --- 删除操作 ---
+        async function deleteKV() {
+            if (isAnimating) return;
+
+            const key = document.getElementById('key-input').value.trim();
+
+            if (!key) {
+                log('Error: 请输入要删除的键', 'error');
+                playSound('error');
+                return;
+            }
+
+            isAnimating = true;
+            const index = hashFunction(key);
+            log(`删除键 ${key}, hash(${key}) = ${index}`, 'info');
+
+            const bucket = document.getElementById(`bucket-${index}`);
+            bucket.classList.add('active');
+            await sleep(500);
+
+            const itemIndex = hashTable[index].findIndex(item => item.key === key);
+            if (itemIndex >= 0) {
+                hashTable[index].splice(itemIndex, 1);
+                elementCount--;
+                playSound('delete');
+                log(`✓ 成功删除键 ${key}`, 'success');
+            } else {
+                playSound('error');
+                log(`✗ 未找到键 ${key}`, 'error');
+            }
+
+            bucket.classList.remove('active');
+            renderHashTable();
+            updateStats();
+            isAnimating = false;
+        }
+
+        // --- 清空哈希表 ---
+        function clearHashTable() {
+            initHashTable();
+            log('哈希表已清空', 'warn');
+        }
+
+        // --- 更新统计 ---
+        function updateStats() {
+            document.getElementById('stat-count').innerText = elementCount;
+            document.getElementById('stat-load').innerText = (elementCount / tableSize).toFixed(2);
+            document.getElementById('stat-collision').innerText = collisionCount;
+
+            let maxChain = 0;
+            hashTable.forEach(bucket => {
+                maxChain = Math.max(maxChain, bucket.length);
+            });
+            document.getElementById('stat-maxchain').innerText = maxChain;
+        }
+
+        // --- 示例数据 ---
+        function loadExample1() {
+            initHashTable();
+            const examples = [
+                { key: '10', value: 'apple' },
+                { key: '22', value: 'banana' },
+                { key: '31', value: 'cherry' },
+                { key: '4', value: 'date' },
+                { key: '15', value: 'elderberry' },
+                { key: '28', value: 'fig' },
+                { key: '17', value: 'grape' }
+            ];
+
+            examples.forEach(ex => {
+                document.getElementById('key-input').value = ex.key;
+                document.getElementById('value-input').value = ex.value;
+                setTimeout(() => insertKV(), 100);
+            });
+
+            log('加载数字键示例', 'info');
+        }
+
+        function loadExample2() {
+            initHashTable();
+            document.getElementById('hash-function').value = 'string';
+
+            const examples = [
+                { key: 'Alice', value: '100' },
+                { key: 'Bob', value: '200' },
+                { key: 'Charlie', value: '300' },
+                { key: 'David', value: '400' },
+                { key: 'Eve', value: '500' }
+            ];
+
+            examples.forEach(ex => {
+                document.getElementById('key-input').value = ex.key;
+                document.getElementById('value-input').value = ex.value;
+                setTimeout(() => insertKV(), 100);
+            });
+
+            log('加载字符串键示例', 'info');
+        }
+
+        // --- 初始化 ---
+        window.onload = function() {
+            tsParticles.load({
+                id: "tsparticles",
+                options: {
+                    background: { color: { value: "transparent" } },
+                    particles: {
+                        color: { value: "#00f3ff" },
+                        links: { color: "#bc13fe", distance: 150, enable: true, opacity: 0.15, width: 1 },
+                        move: { enable: true, speed: 0.5 },
+                        number: { value: window.innerWidth < 768 ? 15 : 30 },
+                        opacity: { value: 0.3 }, size: { value: 2 }
+                    }
+                }
+            });
+
+            initHashTable();
+        };
+    </script>
+</body>
+</html>

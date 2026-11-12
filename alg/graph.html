@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
+    <title>赛博朋克图论算法演示</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/tailwindcss/3.4.1/tailwind.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tsparticles/engine@2/tsparticles.engine.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/tsparticles-engine/2.12.0/tsparticles.engine.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tsparticles/preset-links@2/tsparticles.preset.links.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/tsparticles-preset-links/2.12.0/tsparticles.preset.links.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Courier New', 'Courier', 'monospace', 'system-ui'] },
+                    colors: {
+                        cyber: {
+                            black: '#020205', dark: '#0a0a12', blue: '#00f3ff', pink: '#ff00ff',
+                            purple: '#bc13fe', yellow: '#ffee00', green: '#00ff9f',
+                        }
+                    },
+                    boxShadow: {
+                        'neon-blue': '0 0 5px #00f3ff, 0 0 10px #00f3ff',
+                        'neon-pink': '0 0 5px #ff00ff, 0 0 10px #ff00ff',
+                        'neon-green': '0 0 5px #00ff9f, 0 0 10px #00ff9f',
+                        'neon-purple': '0 0 5px #bc13fe, 0 0 10px #bc13fe',
+                    },
+                    animation: {
+                        'glitch': 'glitch 1s linear infinite',
+                        'pulse-fast': 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    },
+                    keyframes: {
+                        glitch: {
+                            '2%, 64%': { transform: 'translate(2px,0) skew(0deg)' },
+                            '4%, 60%': { transform: 'translate(-2px,0) skew(0deg)' },
+                            '62%': { transform: 'translate(0,0) skew(5deg)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #020205; color: #e0e0e0; touch-action: manipulation; overscroll-behavior: none; }
+        #tsparticles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+        
+        .sidebar-cyber { background: rgba(10, 10, 18, 0.92); backdrop-filter: blur(16px); border-top: 1px solid rgba(0, 243, 255, 0.3); box-shadow: 0 -5px 20px rgba(0, 243, 255, 0.1); }
+        @media (min-width: 768px) { .sidebar-cyber { border-top: none; border-right: 2px solid #00f3ff; } }
+
+        .btn-cyber { position: relative; background: transparent; border: 2px solid; transition: all 0.2s; font-family: 'Courier New', monospace; user-select: none; }
+        .btn-cyber-blue { border-color: #00f3ff; color: #00f3ff; text-shadow: 0 0 5px #00f3ff; }
+        .btn-cyber-blue:active { background: #00f3ff; color: #000; box-shadow: 0 0 20px #00f3ff; transform: scale(0.96); }
+        @media(hover: hover) { .btn-cyber-blue:hover { background: #00f3ff; color: #000; box-shadow: 0 0 20px #00f3ff; } }
+        
+        .btn-cyber-pink { border-color: #ff00ff; color: #ff00ff; text-shadow: 0 0 5px #ff00ff; }
+        .btn-cyber-pink:active { background: #ff00ff; color: #000; box-shadow: 0 0 20px #ff00ff; transform: scale(0.96); }
+        @media(hover: hover) { .btn-cyber-pink:hover { background: #ff00ff; color: #000; box-shadow: 0 0 20px #ff00ff; } }
+
+        .btn-cyber-green { border-color: #00ff9f; color: #00ff9f; text-shadow: 0 0 5px #00ff9f; }
+        .btn-cyber-green:active { background: #00ff9f; color: #000; box-shadow: 0 0 20px #00ff9f; transform: scale(0.96); }
+        @media(hover: hover) { .btn-cyber-green:hover { background: #00ff9f; color: #000; box-shadow: 0 0 20px #00ff9f; } }
+
+        .matrix-table { width: 100%; border-collapse: collapse; font-size: 10px; text-align: center; }
+        .matrix-table th, .matrix-table td { border: 1px solid rgba(0, 243, 255, 0.3); padding: 4px; }
+        .matrix-table th { color: #ff00ff; background: rgba(255,0,255,0.1); }
+        .matrix-table td.active { color: #00ff9f; font-weight: bold; text-shadow: 0 0 5px #00ff9f; }
+
+        canvas#graphCanvas { cursor: grab; background: radial-gradient(circle at center, rgba(0,243,255,0.05) 0%, transparent 70%); }
+        canvas#graphCanvas:active { cursor: grabbing; }
+        
+        /* 切换开关样式 */
+        .toggle-checkbox:checked { right: 0; border-color: #00f3ff; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #00f3ff; }
+        .toggle-checkbox:checked + .toggle-label:after { transform: translateX(100%); border-color: #fff; }
+        
+        ::-webkit-scrollbar { width: 4px; height: 4px;}
+        ::-webkit-scrollbar-track { background: #0a0a12; }
+        ::-webkit-scrollbar-thumb { background: #00f3ff; border-radius: 2px; }
+    </style>
+</head>
+<body class="overflow-hidden flex flex-col-reverse md:flex-row h-screen w-screen font-mono">
+
+    <div id="tsparticles"></div>
+
+    <!-- 左侧控制面板 -->
+    <aside class="w-full md:w-[380px] sidebar-cyber flex flex-col z-20 flex-shrink-0 h-[45%] md:h-full">
+        <!-- 标题 -->
+        <div class="hidden md:block p-5 border-b border-cyber-blue/30 relative overflow-hidden">
+            <h1 class="text-3xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyber-blue to-cyber-purple drop-shadow-[0_0_10px_rgba(0,243,255,0.5)]">GRAPH_OS</h1>
+            <p class="text-[10px] text-cyber-blue/70 mt-1 tracking-[0.2em]">TOPOLOGY & TRAVERSAL</p>
+        </div>
+        <div class="md:hidden w-full pt-2 pb-1 flex justify-center"><div class="w-12 h-1 bg-cyber-blue/30 rounded-full"></div></div>
+
+        <div class="flex-1 overflow-y-auto p-4 space-y-4">
+            
+            <!-- 全局图属性设置 -->
+            <div class="grid grid-cols-2 gap-4 border border-cyber-blue/30 p-3 bg-black/40">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs text-cyber-blue font-bold">有向图 (Directed)</span>
+                    <label class="relative inline-block w-10 h-5 cursor-pointer">
+                        <input type="checkbox" id="toggle-directed" class="sr-only peer" onchange="toggleDirected()">
+                        <div class="w-10 h-5 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyber-blue shadow-[0_0_5px_#00f3ff]"></div>
+                    </label>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs text-cyber-pink font-bold">带权图 (Weighted)</span>
+                    <label class="relative inline-block w-10 h-5 cursor-pointer">
+                        <input type="checkbox" id="toggle-weighted" class="sr-only peer" onchange="toggleWeighted()">
+                        <div class="w-10 h-5 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyber-pink shadow-[0_0_5px_#ff00ff]"></div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 节点与边构造 -->
+            <div class="space-y-2">
+                <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">>> 拓扑构造 (Topology)</label>
+                <div class="flex gap-2">
+                    <button onclick="addNode()" class="btn-cyber btn-cyber-blue flex-1 py-2 text-sm font-bold">
+                        [+] 添加顶点 (Node)
+                    </button>
+                    <button onclick="clearGraph()" class="btn-cyber btn-cyber-pink px-4 py-2 text-sm font-bold">
+                        清空
+                    </button>
+                </div>
+                
+                <div class="flex gap-1">
+                    <input type="number" id="edge-from" placeholder="源" class="w-1/3 bg-cyber-black/50 border border-gray-600 text-white text-center py-2 text-sm outline-none focus:border-cyber-blue">
+                    <input type="number" id="edge-to" placeholder="目" class="w-1/3 bg-cyber-black/50 border border-gray-600 text-white text-center py-2 text-sm outline-none focus:border-cyber-blue">
+                    <input type="number" id="edge-weight" placeholder="权值" class="w-1/3 bg-cyber-black/50 border border-gray-600 text-cyber-pink text-center py-2 text-sm outline-none focus:border-cyber-pink" disabled>
+                </div>
+                <button onclick="addEdge()" class="btn-cyber border-gray-400 text-gray-300 w-full py-2 text-sm font-bold hover:border-white hover:text-white">
+                    -> 建立连接 (Add Edge)
+                </button>
+            </div>
+
+            <!-- 自动生成工具 -->
+            <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-800">
+                <button onclick="generateCompleteGraph()" class="btn-cyber border-cyber-purple text-cyber-purple py-2 text-xs font-bold hover:bg-cyber-purple hover:text-white">
+                    [*] 生成完全图
+                </button>
+                <div class="flex gap-1">
+                    <input type="number" id="random-nodes" value="5" min="2" max="15" class="w-12 bg-cyber-black/50 border border-gray-600 text-center text-white text-xs outline-none">
+                    <button onclick="generateRandomGraph()" class="btn-cyber btn-cyber-green flex-1 py-2 text-xs font-bold">
+                        随机拓扑
+                    </button>
+                </div>
+            </div>
+
+            <!-- 图的遍历 -->
+            <div class="space-y-2 pt-2 border-t border-gray-800">
+                <label class="text-[10px] text-cyber-green font-bold uppercase tracking-widest">>> 遍历算法 (Traversal)</label>
+                <div class="flex items-center gap-2">
+                    <input type="number" id="traverse-start" placeholder="起点ID" value="0" class="w-16 bg-cyber-black/50 border border-cyber-green text-cyber-green text-center py-2 text-sm outline-none">
+                    <button onclick="runBFS()" class="btn-cyber btn-cyber-green flex-1 py-2 text-sm font-bold">广度优先 (BFS)</button>
+                    <button onclick="runDFS()" class="btn-cyber btn-cyber-green flex-1 py-2 text-sm font-bold">深度优先 (DFS)</button>
+                </div>
+            </div>
+
+            <!-- 输出日志 -->
+            <div class="hidden md:block flex-1 min-h-[120px] bg-black/80 border border-gray-700 p-2 text-[10px] overflow-y-auto font-mono relative">
+                <div class="absolute top-0 right-0 px-1 bg-cyber-blue text-black font-bold">STD::OUT</div>
+                <div id="log-box" class="space-y-1 mt-4 text-gray-400">
+                    <div class="text-cyber-green">> System Initialized.</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 右侧可视化区域 -->
+    <main class="flex-1 relative flex flex-col items-center overflow-hidden z-10 h-[55%] md:h-full">
+        <!-- 画布 -->
+        <div class="w-full h-[65%] md:h-[75%] relative border-b border-cyber-blue/20">
+            <canvas id="graphCanvas" class="w-full h-full"></canvas>
+            
+            <div class="absolute top-4 left-4 pointer-events-none">
+                <h2 class="text-2xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-500 opacity-50">TOPOLOGY</h2>
+                <p id="graph-status" class="text-[10px] text-cyber-blue font-bold tracking-widest mt-1">UNDIRECTED | UNWEIGHTED</p>
+            </div>
+        </div>
+
+        <!-- 数据监控大屏 (矩阵与度数) -->
+        <div class="w-full h-[35%] md:h-[25%] bg-cyber-dark/80 flex flex-row overflow-hidden border-t border-cyber-blue/50">
+            <!-- 邻接矩阵 -->
+            <div class="flex-1 border-r border-gray-800 p-2 md:p-4 overflow-auto flex flex-col">
+                <h3 class="text-[10px] md:text-xs text-cyber-pink font-bold uppercase mb-2">>> 邻接矩阵 (Adjacency Matrix)</h3>
+                <div class="flex-1 overflow-auto">
+                    <table id="matrix-table" class="matrix-table"></table>
+                </div>
+            </div>
+            <!-- 顶点度数 -->
+            <div class="w-[120px] md:w-[200px] p-2 md:p-4 overflow-auto flex flex-col">
+                <h3 class="text-[10px] md:text-xs text-cyber-purple font-bold uppercase mb-2">>> 顶点的度 (Degrees)</h3>
+                <div id="degree-list" class="space-y-1 text-[10px] md:text-xs text-gray-300 font-mono">
+                    <!-- 度数渲染 -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // --- 核心数据结构 ---
+        let nodes = []; // {id, x, y, vx, vy, color, glow}
+        let edges = []; // {source, target, weight, color, glow}
+        let nextNodeId = 0;
+        let isDirected = false;
+        let isWeighted = false;
+        let isAnimating = false; // 是否正在遍历动画
+
+        // --- 画布与物理引擎配置 ---
+        const canvas = document.getElementById('graphCanvas');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+        let animationFrameId;
+
+        function resize() {
+            width = canvas.offsetWidth;
+            height = canvas.offsetHeight;
+            canvas.width = width * window.devicePixelRatio;
+            canvas.height = height * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // 声音系统
+        let audioCtx = null;
+        function playSound(type) {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+
+            if (type === 'add') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(800, now); osc.frequency.exponentialRampToValueAtTime(1200, now + 0.1);
+                gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now); osc.stop(now + 0.1);
+            } else if (type === 'link') {
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(400, now); osc.frequency.linearRampToValueAtTime(200, now + 0.1);
+                gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now); osc.stop(now + 0.1);
+            } else if (type === 'step') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(1000, now);
+                gain.gain.setValueAtTime(0.05, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now); osc.stop(now + 0.1);
+            } else if (type === 'error') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, now); osc.frequency.linearRampToValueAtTime(100, now + 0.2);
+                gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.2);
+                osc.start(now); osc.stop(now + 0.2);
+            }
+        }
+
+        // 日志系统
+        function log(msg, type = 'normal') {
+            const logBox = document.getElementById('log-box');
+            if(!logBox) return;
+            const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+            let color = 'text-gray-400';
+            if (type === 'success') color = 'text-cyber-blue';
+            if (type === 'error') color = 'text-cyber-pink';
+            if (type === 'warn') color = 'text-cyber-yellow';
+            const div = document.createElement('div');
+            div.innerHTML = `<span class="opacity-50">[${time}]</span> <span class="${color}">${msg}</span>`;
+            logBox.prepend(div);
+        }
+
+        // --- 图操作函数 ---
+        function toggleDirected() {
+            isDirected = document.getElementById('toggle-directed').checked;
+            updateStatusText();
+            updateDashboard();
+            log(`图模式切换: ${isDirected ? '有向图' : '无向图'}`, 'warn');
+        }
+
+        function toggleWeighted() {
+            isWeighted = document.getElementById('toggle-weighted').checked;
+            document.getElementById('edge-weight').disabled = !isWeighted;
+            updateStatusText();
+            updateDashboard();
+            log(`权重模式切换: ${isWeighted ? '带权图' : '无权图'}`, 'warn');
+        }
+
+        function updateStatusText() {
+            document.getElementById('graph-status').innerText = `${isDirected ? 'DIRECTED' : 'UNDIRECTED'} | ${isWeighted ? 'WEIGHTED' : 'UNWEIGHTED'}`;
+        }
+
+        function addNode(x = width/2 + (Math.random()-0.5)*50, y = height/2 + (Math.random()-0.5)*50) {
+            nodes.push({
+                id: nextNodeId++,
+                x: x, y: y,
+                vx: 0, vy: 0,
+                color: '#00f3ff', // default blue
+                glow: 0
+            });
+            playSound('add');
+            log(`顶点 ${nextNodeId-1} 已创建`, 'success');
+            updateDashboard();
+        }
+
+        function addEdgeManual(from, to, weight) {
+            if (from === to) { log('Error: 暂不支持自环', 'error'); playSound('error'); return; }
+            if (!nodes.find(n => n.id === from) || !nodes.find(n => n.id === to)) {
+                log('Error: 顶点不存在', 'error'); playSound('error'); return;
+            }
+            
+            // 检查是否已存在
+            let exists = edges.find(e => e.source === from && e.target === to);
+            if (!isDirected && !exists) {
+                exists = edges.find(e => e.source === to && e.target === from);
+            }
+
+            if (exists) {
+                exists.weight = weight; // 更新权值
+                log(`边 ${from}-${to} 权值更新为 ${weight}`);
+            } else {
+                edges.push({ source: from, target: to, weight: weight, color: '#bc13fe', glow: 0 });
+                log(`边 ${from} -> ${to} 已建立`, 'success');
+            }
+            playSound('link');
+            updateDashboard();
+        }
+
+        function addEdge() {
+            const from = parseInt(document.getElementById('edge-from').value);
+            const to = parseInt(document.getElementById('edge-to').value);
+            let weight = parseInt(document.getElementById('edge-weight').value);
+            if (isNaN(from) || isNaN(to)) return;
+            if (!isWeighted) weight = 1;
+            if (isNaN(weight)) weight = 1;
+            addEdgeManual(from, to, weight);
+        }
+
+        function clearGraph() {
+            nodes = [];
+            edges = [];
+            nextNodeId = 0;
+            log('图已清空', 'warn');
+            updateDashboard();
+        }
+
+        function generateCompleteGraph() {
+            edges = [];
+            for (let i = 0; i < nodes.length; i++) {
+                for (let j = 0; j < nodes.length; j++) {
+                    if (i !== j) {
+                        if (isDirected || i < j) {
+                            let w = isWeighted ? Math.floor(Math.random() * 9) + 1 : 1;
+                            edges.push({ source: nodes[i].id, target: nodes[j].id, weight: w, color: '#bc13fe', glow: 0 });
+                        }
+                    }
+                }
+            }
+            playSound('add');
+            log('生成完全图 (Complete Graph)', 'success');
+            updateDashboard();
+        }
+
+        function generateRandomGraph() {
+            clearGraph();
+            const count = parseInt(document.getElementById('random-nodes').value) || 5;
+            for(let i=0; i<count; i++) addNode(Math.random()*width, Math.random()*height);
+            
+            const edgeCount = Math.floor(count * 1.5); // 随机生成适量的边
+            for(let i=0; i<edgeCount; i++) {
+                const u = Math.floor(Math.random() * count);
+                const v = Math.floor(Math.random() * count);
+                if(u !== v) {
+                    let w = isWeighted ? Math.floor(Math.random() * 9) + 1 : 1;
+                    addEdgeManual(u, v, w);
+                }
+            }
+            log(`生成随机拓扑，节点数: ${count}`, 'success');
+        }
+
+        // --- 数据面板渲染 (矩阵 & 度数) ---
+        function updateDashboard() {
+            const matrixTable = document.getElementById('matrix-table');
+            const degreeList = document.getElementById('degree-list');
+            
+            if (nodes.length === 0) {
+                matrixTable.innerHTML = '';
+                degreeList.innerHTML = '<span class="text-gray-600">No Nodes</span>';
+                return;
+            }
+
+            // 初始化矩阵和度数统计
+            let matrix = Array(nextNodeId).fill(0).map(() => Array(nextNodeId).fill(isWeighted ? '∞' : '0'));
+            let inDegree = Array(nextNodeId).fill(0);
+            let outDegree = Array(nextNodeId).fill(0);
+
+            // 填充数据
+            edges.forEach(e => {
+                matrix[e.source][e.target] = e.weight;
+                outDegree[e.source]++;
+                inDegree[e.target]++;
+                if (!isDirected) {
+                    matrix[e.target][e.source] = e.weight;
+                    outDegree[e.target]++;
+                    inDegree[e.source]++; // 无向图度数 = in = out
+                }
+            });
+
+            // 渲染矩阵 HTML
+            let html = '<tr><th>#</th>';
+            nodes.forEach(n => html += `<th>${n.id}</th>`);
+            html += '</tr>';
+
+            nodes.forEach(rowNode => {
+                html += `<tr><th>${rowNode.id}</th>`;
+                nodes.forEach(colNode => {
+                    let val = matrix[rowNode.id][colNode.id];
+                    let isEdge = val !== '0' && val !== '∞';
+                    html += `<td class="${isEdge ? 'active' : 'opacity-30'}">${val}</td>`;
+                });
+                html += '</tr>';
+            });
+            matrixTable.innerHTML = html;
+
+            // 渲染度数 HTML
+            let degHtml = '';
+            nodes.forEach(n => {
+                if (isDirected) {
+                    degHtml += `<div class="flex justify-between border-b border-gray-800 pb-1">
+                                    <span class="text-cyber-blue font-bold">V${n.id}</span>
+                                    <span>In:${inDegree[n.id]} Out:${outDegree[n.id]}</span>
+                                </div>`;
+                } else {
+                    degHtml += `<div class="flex justify-between border-b border-gray-800 pb-1">
+                                    <span class="text-cyber-blue font-bold">V${n.id}</span>
+                                    <span>Degree: ${outDegree[n.id]}</span>
+                                </div>`;
+                }
+            });
+            degreeList.innerHTML = degHtml;
+        }
+
+        // --- 遍历算法可视化 ---
+        function resetColors() {
+            nodes.forEach(n => { n.color = '#00f3ff'; n.glow = 0; n.radius = 18; });
+            edges.forEach(e => { e.color = '#bc13fe'; e.glow = 0; });
+        }
+
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+        async function highlightNode(id, color, logMsg) {
+            let n = nodes.find(n => n.id === id);
+            if(n) { 
+                n.color = color; 
+                n.glow = 25; // 提高发光强度触发放大
+                if(logMsg) log(logMsg, 'success');
+                playSound('step'); 
+            }
+            await sleep(600);
+            // 只有当颜色没有被其他状态覆盖时，才取消发光
+            if(n && n.color === color) n.glow = 0; 
+        }
+
+        async function markEdge(u, v) {
+            let e = edges.find(e => e.source === u && e.target === v);
+            if(!e && !isDirected) e = edges.find(e => e.source === v && e.target === u);
+            if(e) { 
+                e.color = '#00ff9f'; // 走过的边变绿
+                e.glow = 15; 
+                playSound('link');
+            }
+            await sleep(400);
+        }
+
+        async function runBFS() {
+            if(isAnimating) { log('遍历正在进行中...', 'warn'); return; }
+            if(nodes.length === 0) { log('Error: 图为空', 'error'); return; }
+
+            // 起点智能纠错
+            let startId = parseInt(document.getElementById('traverse-start').value);
+            if(isNaN(startId) || !nodes.find(n=>n.id === startId)) {
+                startId = nodes[0].id;
+                document.getElementById('traverse-start').value = startId;
+                log(`起点无效，自动设为 V${startId}`, 'warn');
+            }
+            
+            isAnimating = true;
+            resetColors();
+            log(`=== 开始 BFS (广度优先) ===`, 'warn');
+
+            let queue = [startId];
+            let visited = new Set([startId]);
+            nodes.find(n=>n.id === startId).color = '#ffee00'; // 黄色：进入队列等待
+
+            while(queue.length > 0) {
+                let u = queue.shift();
+                
+                await highlightNode(u, '#ff00ff', `> 正在访问 V${u}`); // 粉色：当前节点
+                
+                let neighbors = [];
+                edges.forEach(e => {
+                    if (e.source === u) neighbors.push(e.target);
+                    if (!isDirected && e.target === u) neighbors.push(e.source);
+                });
+
+                // 按ID排序以保证视觉顺序性
+                neighbors.sort((a,b) => a-b);
+
+                for(let v of neighbors) {
+                    if(!visited.has(v)) {
+                        visited.add(v);
+                        await markEdge(u, v);
+                        nodes.find(n=>n.id === v).color = '#ffee00'; 
+                        log(`>> 发现邻接点 V${v}，加入队列`, 'normal');
+                        queue.push(v);
+                    }
+                }
+                nodes.find(n=>n.id===u).color = '#00ff9f'; // 绿色：探索完毕
+                await sleep(300);
+            }
+            log('=== BFS 遍历完成 ===', 'success');
+            isAnimating = false;
+        }
+
+        async function runDFS() {
+            if(isAnimating) { log('遍历正在进行中...', 'warn'); return; }
+            if(nodes.length === 0) { log('Error: 图为空', 'error'); return; }
+
+            let startId = parseInt(document.getElementById('traverse-start').value);
+            if(isNaN(startId) || !nodes.find(n=>n.id === startId)) {
+                startId = nodes[0].id;
+                document.getElementById('traverse-start').value = startId;
+                log(`起点无效，自动设为 V${startId}`, 'warn');
+            }
+            
+            isAnimating = true;
+            resetColors();
+            log(`=== 开始 DFS (深度优先) ===`, 'warn');
+            let visited = new Set();
+
+            async function dfs(u) {
+                visited.add(u);
+                await highlightNode(u, '#ff00ff', `> 深入访问 V${u}`);
+                
+                let neighbors = [];
+                edges.forEach(e => {
+                    if (e.source === u) neighbors.push(e.target);
+                    if (!isDirected && e.target === u) neighbors.push(e.source);
+                });
+                neighbors.sort((a,b) => a-b);
+
+                for(let v of neighbors) {
+                    if(!visited.has(v)) {
+                        await markEdge(u, v);
+                        log(`>> 沿着边深入 V${v}`, 'normal');
+                        await dfs(v);
+                        // 回溯表现
+                        await highlightNode(u, '#ff00ff', `<< 回溯至 V${u}`);
+                    }
+                }
+                nodes.find(n=>n.id===u).color = '#00ff9f'; // 绿色：分支探索完毕
+                log(`=== V${u} 的所有分支探索完毕 ===`, 'success');
+                await sleep(300);
+            }
+
+            await dfs(startId);
+            log('=== DFS 遍历完成 ===', 'success');
+            isAnimating = false;
+        }
+
+        // --- 物理引擎与渲染 ---
+        let draggedNode = null;
+
+        canvas.addEventListener('mousedown', e => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            draggedNode = nodes.find(n => Math.hypot(n.x - x, n.y - y) < 20);
+        });
+        canvas.addEventListener('mousemove', e => {
+            if(draggedNode) {
+                const rect = canvas.getBoundingClientRect();
+                draggedNode.x = e.clientX - rect.left;
+                draggedNode.y = e.clientY - rect.top;
+            }
+        });
+        window.addEventListener('mouseup', () => draggedNode = null);
+
+        // 触摸支持
+        canvas.addEventListener('touchstart', e => {
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches[0];
+            draggedNode = nodes.find(n => Math.hypot(n.x - (touch.clientX - rect.left), n.y - (touch.clientY - rect.top)) < 30);
+        });
+        canvas.addEventListener('touchmove', e => {
+            if(draggedNode) {
+                const rect = canvas.getBoundingClientRect();
+                const touch = e.touches[0];
+                draggedNode.x = touch.clientX - rect.left;
+                draggedNode.y = touch.clientY - rect.top;
+                e.preventDefault();
+            }
+        }, {passive: false});
+        window.addEventListener('touchend', () => draggedNode = null);
+
+        function applyPhysics() {
+            const k = Math.sqrt((width * height) / (nodes.length || 1)); // 理想距离
+            const repel = 5000; // 斥力系数
+            
+            // 计算斥力
+            for(let i=0; i<nodes.length; i++) {
+                for(let j=i+1; j<nodes.length; j++) {
+                    let u = nodes[i], v = nodes[j];
+                    let dx = u.x - v.x, dy = u.y - v.y;
+                    let dist = Math.hypot(dx, dy) || 1;
+                    let f = repel / (dist * dist);
+                    let fx = (dx/dist) * f, fy = (dy/dist) * f;
+                    u.vx += fx; u.vy += fy;
+                    v.vx -= fx; v.vy -= fy;
+                }
+            }
+
+            // 计算引力 (边)
+            edges.forEach(e => {
+                let u = nodes.find(n => n.id === e.source);
+                let v = nodes.find(n => n.id === e.target);
+                if(u && v) {
+                    let dx = v.x - u.x, dy = v.y - u.y;
+                    let dist = Math.hypot(dx, dy) || 1;
+                    // 距离过大产生引力
+                    let f = (dist * dist) / (k * 150); 
+                    let fx = (dx/dist) * f, fy = (dy/dist) * f;
+                    u.vx += fx; u.vy += fy;
+                    v.vx -= fx; v.vy -= fy;
+                }
+            });
+
+            // 更新位置与摩擦力
+            nodes.forEach(n => {
+                if(n !== draggedNode) {
+                    n.x += n.vx * 0.5; // 速度系数
+                    n.y += n.vy * 0.5;
+                    // 边界限制
+                    n.x = Math.max(20, Math.min(width - 20, n.x));
+                    n.y = Math.max(20, Math.min(height - 20, n.y));
+                }
+                n.vx *= 0.7; // 衰减
+                n.vy *= 0.7;
+            });
+        }
+
+        function drawArrow(ctx, fromX, fromY, toX, toY, color) {
+            const headlen = 10; 
+            const dx = toX - fromX, dy = toY - fromY;
+            const angle = Math.atan2(dy, dx);
+            const r = 22; // 节点半径
+            const targetX = toX - r * Math.cos(angle);
+            const targetY = toY - r * Math.sin(angle);
+            
+            ctx.strokeStyle = color;
+            ctx.beginPath();
+            ctx.moveTo(fromX, fromY);
+            ctx.lineTo(targetX, targetY);
+            ctx.stroke();
+            
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.moveTo(targetX, targetY);
+            ctx.lineTo(targetX - headlen * Math.cos(angle - Math.PI / 6), targetY - headlen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(targetX - headlen * Math.cos(angle + Math.PI / 6), targetY - headlen * Math.sin(angle + Math.PI / 6));
+            ctx.fill();
+        }
+
+        function renderCanvas() {
+            ctx.clearRect(0, 0, width, height);
+            applyPhysics();
+
+            // 绘制边
+            edges.forEach(e => {
+                ctx.lineWidth = e.glow > 0 ? 4 : 2; // 当前激活的边会变粗
+                let u = nodes.find(n => n.id === e.source);
+                let v = nodes.find(n => n.id === e.target);
+                if(u && v) {
+                    ctx.shadowBlur = e.glow || 0;
+                    ctx.shadowColor = e.color;
+                    
+                    // 检查是否是双向边 (简化处理，稍微偏移)
+                    let offset = 0;
+                    if(isDirected && edges.find(ex => ex.source === v.id && ex.target === u.id)) {
+                        offset = 10; // 若互连，产生曲线偏移
+                    }
+
+                    if(isDirected) {
+                        if(offset > 0) {
+                            const mx = (u.x + v.x)/2, my = (u.y + v.y)/2;
+                            const dx = v.x - u.x, dy = v.y - u.y;
+                            const normalX = -dy, normalY = dx;
+                            const len = Math.hypot(normalX, normalY);
+                            const cx = mx + (normalX/len) * offset;
+                            const cy = my + (normalY/len) * offset;
+                            
+                            // 简化曲线带箭头
+                            ctx.strokeStyle = e.color;
+                            ctx.beginPath();
+                            ctx.moveTo(u.x, u.y);
+                            ctx.quadraticCurveTo(cx, cy, v.x, v.y);
+                            ctx.stroke();
+                            // 此处省略曲线箭头的精确计算，用简单线代替
+                        } else {
+                            drawArrow(ctx, u.x, u.y, v.x, v.y, e.color);
+                        }
+                    } else {
+                        ctx.strokeStyle = e.color;
+                        ctx.beginPath();
+                        ctx.moveTo(u.x, u.y);
+                        ctx.lineTo(v.x, v.y);
+                        ctx.stroke();
+                    }
+
+                    // 绘制权值
+                    if(isWeighted) {
+                        ctx.fillStyle = '#ff00ff';
+                        ctx.font = '12px Courier New';
+                        ctx.fillText(e.weight, (u.x + v.x)/2, (u.y + v.y)/2 - 5);
+                    }
+                    ctx.shadowBlur = 0;
+                }
+            });
+
+            // 绘制节点
+            nodes.forEach(n => {
+                ctx.shadowBlur = n.glow || 5;
+                ctx.shadowColor = n.color;
+                ctx.fillStyle = '#0a0a12';
+                ctx.strokeStyle = n.color;
+                ctx.lineWidth = 2;
+
+                // 节点呼吸与突起动画 (平滑过渡半径)
+                let targetRadius = n.glow > 0 ? 25 : 18;
+                n.radius = n.radius ? n.radius + (targetRadius - n.radius) * 0.2 : 18;
+
+                ctx.beginPath();
+                ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 14px Courier New';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(n.id, n.x, n.y);
+            });
+
+            animationFrameId = requestAnimationFrame(renderCanvas);
+        }
+
+        window.onload = function() {
+            tsParticles.load({
+                id: "tsparticles",
+                options: {
+                    background: { color: { value: "transparent" } },
+                    particles: {
+                        color: { value: "#00f3ff" },
+                        links: { color: "#bc13fe", distance: 150, enable: true, opacity: 0.15, width: 1 },
+                        move: { enable: true, speed: 0.5 },
+                        number: { value: window.innerWidth < 768 ? 15 : 30 },
+                        opacity: { value: 0.3 }, size: { value: 2 }
+                    }
+                }
+            });
+            // 初始生成几个点演示
+            generateRandomGraph();
+            renderCanvas();
+        };
+    </script>
+</body>
+</html>

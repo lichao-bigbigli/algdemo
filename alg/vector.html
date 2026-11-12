@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
+    <title>赛博朋克数组演示</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tsparticles/engine@2/tsparticles.engine.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tsparticles/preset-links@2/tsparticles.preset.links.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Courier New', 'Courier', 'monospace', 'system-ui'] },
+                    colors: {
+                        cyber: {
+                            black: '#020205',
+                            dark: '#0a0a12',
+                            blue: '#00f3ff',
+                            pink: '#ff00ff',
+                            purple: '#bc13fe',
+                            yellow: '#ffee00',
+                            green: '#00ff9f',
+                            red: '#ff0055',
+                        }
+                    },
+                    boxShadow: {
+                        'neon-blue': '0 0 5px #00f3ff, 0 0 10px #00f3ff',
+                        'neon-pink': '0 0 5px #ff00ff, 0 0 10px #ff00ff',
+                        'neon-green': '0 0 5px #00ff9f, 0 0 10px #00ff9f',
+                        'neon-purple': '0 0 5px #bc13fe, 0 0 10px #bc13fe',
+                    },
+                    animation: {
+                        'glitch': 'glitch 1s linear infinite',
+                        'pulse-fast': 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'spin-slow': 'spin 20s linear infinite',
+                        'spin-reverse-slow': 'spinReverse 25s linear infinite',
+                    },
+                    keyframes: {
+                        glitch: {
+                            '2%, 64%': { transform: 'translate(2px,0) skew(0deg)' },
+                            '4%, 60%': { transform: 'translate(-2px,0) skew(0deg)' },
+                            '62%': { transform: 'translate(0,0) skew(5deg)' },
+                        },
+                        spinReverse: {
+                            '0%': { transform: 'rotate(360deg)' },
+                            '100%': { transform: 'rotate(0deg)' },
+                        }
+                    },
+                    screens: { 'xs': '375px' }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #020205; color: #e0e0e0;
+            touch-action: manipulation; overscroll-behavior: none; -webkit-tap-highlight-color: transparent;
+        }
+        #tsparticles, #trail-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        #tsparticles { z-index: -1; } #trail-canvas { z-index: 9999; }
+
+        .sidebar-cyber {
+            background: rgba(10, 10, 18, 0.92);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-top: 1px solid rgba(0, 243, 255, 0.3); 
+            box-shadow: 0 -5px 20px rgba(0, 243, 255, 0.1);
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        @media (min-width: 768px) {
+            .sidebar-cyber { border-top: none; border-right: 2px solid #00f3ff; padding-bottom: 0; }
+        }
+
+        .btn-cyber {
+            position: relative; background: transparent; border: 2px solid;
+            letter-spacing: 1px; transition: all 0.2s; overflow: hidden; z-index: 1;
+            font-family: 'Courier New', monospace; touch-action: manipulation; user-select: none;
+        }
+        .btn-cyber:active { transform: scale(0.96); }
+
+        .btn-blue { border-color: #00f3ff; color: #00f3ff; text-shadow: 0 0 8px rgba(0,243,255,0.8); }
+        .btn-blue:active { background: #00f3ff; color: #000; box-shadow: 0 0 20px #00f3ff; }
+        
+        .btn-pink { border-color: #ff00ff; color: #ff00ff; text-shadow: 0 0 8px rgba(255,0,255,0.8); }
+        .btn-pink:active { background: #ff00ff; color: #000; box-shadow: 0 0 20px #ff00ff; }
+
+        .btn-green { border-color: #00ff9f; color: #00ff9f; text-shadow: 0 0 8px rgba(0,255,159,0.8); }
+        .btn-green:active { background: #00ff9f; color: #000; box-shadow: 0 0 20px #00ff9f; }
+
+        .btn-purple { border-color: #bc13fe; color: #bc13fe; }
+        .btn-purple:active { background: #bc13fe; color: #fff; box-shadow: 0 0 15px #bc13fe; }
+
+        .array-cell {
+            background: rgba(0, 243, 255, 0.05); border: 1px solid #00f3ff; color: #00f3ff;
+            box-shadow: 0 0 5px rgba(0, 243, 255, 0.1); font-family: 'Courier New', monospace;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            min-width: 60px; height: 60px; display: flex; align-items: center; justify-content: center;
+            position: relative; margin-bottom: 20px; /* Space for index */
+        }
+        
+        /* 索引标签 */
+        .cell-index {
+            position: absolute; bottom: -20px; width: 100%; text-align: center;
+            font-size: 10px; color: #4b5563; font-weight: bold;
+        }
+
+        /* 动画状态类 */
+        .fly-in { animation: cyberSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+        .pop-out { animation: cyberPopOut 0.4s ease-in forwards !important; }
+        .highlight-access { animation: accessFlash 0.6s ease-out; border-color: #bc13fe; color: #bc13fe; box-shadow: 0 0 15px #bc13fe; background: rgba(188, 19, 254, 0.2); }
+        .highlight-update { animation: updateFlash 0.6s ease-out; border-color: #00ff9f; color: #00ff9f; box-shadow: 0 0 15px #00ff9f; background: rgba(0, 255, 159, 0.2); }
+
+        @keyframes cyberSlideIn { 
+            0% { opacity: 0; transform: translateY(-20px) scale(0.8); } 
+            100% { opacity: 1; transform: translateY(0) scale(1); } 
+        }
+        @keyframes cyberPopOut { 
+            0% { transform: scale(1); opacity: 1; } 
+            100% { transform: translateY(50px) scale(0.5); opacity: 0; } 
+        }
+        @keyframes accessFlash {
+            0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); }
+        }
+        @keyframes updateFlash {
+            0% { transform: rotate(0deg); } 25% { transform: rotate(5deg); } 75% { transform: rotate(-5deg); } 100% { transform: rotate(0deg); }
+        }
+
+        #explosion-overlay { pointer-events: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 100; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); }
+        .explosion-particle { position: absolute; pointer-events: none; box-shadow: 0 0 10px currentColor; }
+        
+        .geo-circle { position: absolute; border-radius: 50%; border: 1px dashed rgba(0, 243, 255, 0.15); pointer-events: none; z-index: 0; }
+        .geo-square { position: absolute; border: 1px solid rgba(188, 19, 254, 0.1); pointer-events: none; z-index: 0; }
+        ::-webkit-scrollbar { height: 4px; width: 4px; }
+        ::-webkit-scrollbar-track { background: #0a0a12; }
+        ::-webkit-scrollbar-thumb { background: #00f3ff; border-radius: 2px; }
+        .h-dvh { height: 100vh; height: 100dvh; }
+    </style>
+</head>
+<body class="overflow-hidden flex flex-col-reverse md:flex-row h-dvh w-screen font-mono">
+
+    <div id="tsparticles"></div>
+    <canvas id="trail-canvas"></canvas>
+
+    <!-- Background Geometry -->
+    <div class="fixed inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
+        <div class="geo-circle w-[280px] h-[280px] md:w-[600px] md:h-[600px] animate-spin-slow border-t-transparent border-l-transparent"></div>
+        <div class="geo-circle w-[200px] h-[200px] md:w-[450px] md:h-[450px] animate-spin-reverse-slow border-b-transparent border-r-transparent" style="border-color: rgba(255, 0, 255, 0.15);"></div>
+        <div class="geo-square w-[140px] h-[140px] md:w-[300px] md:h-[300px] animate-spin-slow" style="transform: rotate(45deg);"></div>
+        <div class="absolute inset-0 bg-[linear-gradient(rgba(0,243,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,243,255,0.03)_1px,transparent_1px)] bg-[size:30px_30px] md:bg-[size:50px_50px] [transform:perspective(500px)_rotateX(60deg)_scale(3)] origin-top opacity-50"></div>
+    </div>
+
+    <!-- Sidebar (Controls) -->
+    <aside class="w-full md:w-96 sidebar-cyber flex flex-col z-20 flex-shrink-0 h-[45%] md:h-full">
+        <!-- Title -->
+        <div class="hidden md:block p-6 border-b border-cyber-blue/30 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-cyber-blue/20 to-transparent"></div>
+            <h1 class="text-3xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyber-blue to-cyber-pink drop-shadow-[0_0_10px_rgba(0,243,255,0.5)]">STD::VECTOR</h1>
+            <p class="text-[10px] text-cyber-blue/70 mt-1 tracking-[0.3em]">DYNAMIC ARRAY</p>
+        </div>
+        
+        <!-- Mobile Handle -->
+        <div class="md:hidden w-full pt-2 pb-1 flex justify-center cursor-pointer" onclick="document.activeElement.blur()">
+             <div class="w-12 h-1 bg-cyber-blue/30 rounded-full"></div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-3 md:p-6 space-y-3 md:space-y-6">
+            
+            <!-- Inputs Row -->
+            <div class="grid grid-cols-5 gap-2">
+                <!-- Value Input -->
+                <div class="col-span-3 space-y-1 group">
+                    <label class="text-[10px] text-cyber-pink font-bold uppercase tracking-widest pl-1">VALUE</label>
+                    <input type="text" id="input-value" placeholder="Val" 
+                           class="w-full bg-cyber-black/50 border border-gray-600 text-cyber-blue rounded px-2 py-2 md:py-3 focus:border-cyber-blue focus:shadow-neon-blue outline-none transition-all font-bold text-base text-center">
+                </div>
+                <!-- Index Input -->
+                <div class="col-span-2 space-y-1 group">
+                    <label class="text-[10px] text-cyber-purple font-bold uppercase tracking-widest pl-1">INDEX</label>
+                    <input type="number" id="input-index" placeholder="Idx" 
+                           class="w-full bg-cyber-black/50 border border-gray-600 text-cyber-purple rounded px-2 py-2 md:py-3 focus:border-cyber-purple focus:shadow-neon-purple outline-none transition-all font-bold text-base text-center">
+                </div>
+            </div>
+
+            <!-- Operations -->
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="pushBack()" class="btn-cyber btn-blue py-3 font-bold text-sm md:text-base flex flex-col items-center justify-center gap-1 rounded">
+                    <span>push_back()</span>
+                </button>
+                <button onclick="popBack()" class="btn-cyber btn-pink py-3 font-bold text-sm md:text-base flex flex-col items-center justify-center gap-1 rounded">
+                    <span>pop_back()</span>
+                </button>
+                <button onclick="accessAt()" class="btn-cyber btn-purple py-3 font-bold text-sm md:text-base flex flex-col items-center justify-center gap-1 rounded">
+                    <span>at(index)</span>
+                </button>
+                <button onclick="updateAt()" class="btn-cyber btn-green py-3 font-bold text-sm md:text-base flex flex-col items-center justify-center gap-1 rounded">
+                    <span>update(i, v)</span>
+                </button>
+            </div>
+
+            <!-- Status -->
+            <div class="grid grid-cols-2 gap-3 pt-2 border-t border-gray-800/50">
+                <button onclick="checkSize()" class="btn-cyber border-gray-600 text-gray-400 py-2 text-xs font-bold rounded hover:text-white hover:border-white">
+                    size() <span id="size-indicator" class="text-cyber-green ml-1">0</span>
+                </button>
+                <button onclick="checkEmpty()" class="btn-cyber border-gray-600 text-gray-400 py-2 text-xs font-bold rounded hover:text-cyber-yellow hover:border-cyber-yellow">
+                    empty()
+                </button>
+            </div>
+
+            <!-- Log -->
+            <div class="hidden md:block flex-1 min-h-[100px] bg-black/80 border border-gray-700 p-3 text-[10px] overflow-y-auto font-mono shadow-inner relative">
+                <div class="absolute top-0 right-0 px-1 bg-cyber-blue text-black font-bold">STD::OUT</div>
+                <div id="message-box" class="space-y-1 mt-4 text-gray-400">
+                    <div class="text-cyber-green">> #include &lt;vector&gt;</div>
+                    <div class="text-cyber-green">> std::vector&lt;T&gt; v;</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Visual Area -->
+    <main class="flex-1 relative flex flex-col items-center justify-center overflow-hidden perspective-1000 z-10 h-[55%] md:h-full">
+        <div class="absolute top-4 right-4 md:top-10 md:right-10 text-right opacity-40 pointer-events-none select-none z-0">
+            <h2 class="text-4xl md:text-8xl font-black text-white mix-blend-overlay">VECTOR</h2>
+            <p class="text-xs md:text-2xl text-cyber-blue font-bold tracking-widest">RANDOM ACCESS</p>
+        </div>
+
+        <div id="mobile-log" class="md:hidden absolute top-4 left-4 text-[10px] text-cyber-green/90 font-mono pointer-events-none max-w-[200px] overflow-hidden whitespace-nowrap text-ellipsis z-20 bg-black/40 px-2 py-1 rounded backdrop-blur-sm border-l-2 border-cyber-green">
+            > SYSTEM READY
+        </div>
+
+        <div class="relative w-full h-full flex flex-col items-center justify-center z-10 px-2">
+            <!-- Array Container -->
+            <div id="array-container" class="w-full max-w-5xl flex flex-row flex-wrap items-center justify-center gap-2 md:gap-3 p-4 min-h-[100px] transition-all duration-300">
+                <div id="empty-placeholder" class="text-center w-full py-10 animate-pulse">
+                    <div class="text-3xl md:text-6xl mb-2 text-gray-700 font-thin">[ ]</div>
+                    <p class="text-[10px] md:text-xs text-cyber-pink tracking-widest uppercase border border-cyber-pink/30 px-2 py-1 inline-block">vector is empty</p>
+                </div>
+            </div>
+            
+            <!-- Memory Bar Decoration -->
+            <div class="w-[90%] h-px bg-gradient-to-r from-transparent via-cyber-blue to-transparent opacity-50 mt-8"></div>
+            <div class="flex justify-between w-[80%] text-[8px] text-cyber-blue/30 mt-1 font-mono">
+                <span>0x0000</span>
+                <span>CONTIGUOUS_MEMORY</span>
+                <span>0xFFFF</span>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let arrayData = [];
+        const MAX_CAPACITY = 12; 
+        const arrayContainer = document.getElementById('array-container');
+        const inputValue = document.getElementById('input-value');
+        const inputIndex = document.getElementById('input-index');
+        const messageBox = document.getElementById('message-box');
+        const mobileLog = document.getElementById('mobile-log');
+        const emptyPlaceholder = document.getElementById('empty-placeholder');
+        const sizeIndicator = document.getElementById('size-indicator');
+        let audioCtx = null;
+
+        // --- Sound ---
+        function playSound(type) {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+
+            if (type === 'push') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(200, now); osc.frequency.linearRampToValueAtTime(600, now + 0.1);
+                gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+            } else if (type === 'pop') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(600, now); osc.frequency.linearRampToValueAtTime(200, now + 0.1);
+                gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+            } else if (type === 'access') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(880, now);
+                gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+            } else if (type === 'update') {
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(440, now); osc.frequency.linearRampToValueAtTime(880, now + 0.1);
+                gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+            } else if (type === 'error') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(100, now); osc.frequency.linearRampToValueAtTime(50, now + 0.2);
+                gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.2);
+            }
+            osc.start(now); osc.stop(now + 0.3);
+        }
+
+        function log(msg, type = 'normal') {
+            if (mobileLog) {
+                mobileLog.textContent = "> " + msg.replace(/std::|cerr << |v\./g, '');
+                mobileLog.style.color = type === 'error' ? '#ff00ff' : '#00ff9f';
+                mobileLog.classList.remove('animate-pulse'); void mobileLog.offsetWidth; mobileLog.classList.add('animate-pulse');
+            }
+            const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+            let colorClass = 'text-gray-400';
+            if (type === 'success') colorClass = 'text-cyber-blue';
+            if (type === 'error') colorClass = 'text-cyber-pink';
+            if (type === 'warn') colorClass = 'text-cyber-yellow';
+            const line = document.createElement('div');
+            line.innerHTML = `<span class="opacity-50">[${time}]</span> <span class="${colorClass}">${msg}</span>`;
+            messageBox.prepend(line);
+        }
+
+        function render() {
+            arrayContainer.innerHTML = '';
+            if (arrayData.length === 0) {
+                arrayContainer.appendChild(emptyPlaceholder);
+                emptyPlaceholder.style.display = 'block';
+            } else {
+                emptyPlaceholder.style.display = 'none';
+                arrayData.forEach((val, idx) => {
+                    const cell = document.createElement('div');
+                    cell.className = 'array-cell rounded-md md:rounded-lg text-lg md:text-xl font-bold select-none';
+                    cell.id = `cell-${idx}`;
+                    cell.innerHTML = `
+                        <span class="z-10">${val}</span>
+                        <div class="cell-index">[${idx}]</div>
+                    `;
+                    // Grid background
+                    const grid = document.createElement('div');
+                    grid.className = 'absolute inset-0 opacity-20 bg-[linear-gradient(45deg,transparent_25%,#00f3ff_25%,#00f3ff_50%,transparent_50%,transparent_75%,#00f3ff_75%,#00f3ff_100%)] bg-[size:5px_5px] pointer-events-none';
+                    cell.appendChild(grid);
+                    
+                    arrayContainer.appendChild(cell);
+                });
+            }
+            sizeIndicator.textContent = arrayData.length;
+        }
+
+        function pushBack() {
+            const val = inputValue.value.trim();
+            if (!val) { log("Error: VALUE REQUIRED", "error"); playSound('error'); return; }
+            if (arrayData.length >= MAX_CAPACITY) { log("Error: CAPACITY LIMIT", "error"); playSound('error'); return; }
+
+            arrayData.push(val);
+            log(`v.push_back("${val}");`, "success");
+            playSound('push');
+            
+            // Render logic optimized for animation: append only new
+            if (arrayData.length === 1) render();
+            else {
+                // Manually append last for animation
+                const idx = arrayData.length - 1;
+                const cell = document.createElement('div');
+                cell.className = 'array-cell rounded-md md:rounded-lg text-lg md:text-xl font-bold select-none fly-in';
+                cell.id = `cell-${idx}`;
+                cell.innerHTML = `<span class="z-10">${val}</span><div class="cell-index">[${idx}]</div>`;
+                const grid = document.createElement('div');
+                grid.className = 'absolute inset-0 opacity-20 bg-[linear-gradient(45deg,transparent_25%,#00f3ff_25%,#00f3ff_50%,transparent_50%,transparent_75%,#00f3ff_75%,#00f3ff_100%)] bg-[size:5px_5px] pointer-events-none';
+                cell.appendChild(grid);
+                arrayContainer.appendChild(cell);
+                sizeIndicator.textContent = arrayData.length;
+            }
+            inputValue.value = "";
+            inputValue.focus();
+        }
+
+        function popBack() {
+            if (arrayData.length === 0) { log("Error: VECTOR EMPTY", "error"); playSound('error'); return; }
+            
+            const lastIdx = arrayData.length - 1;
+            const lastEl = document.getElementById(`cell-${lastIdx}`);
+            const val = arrayData[lastIdx];
+            
+            playSound('pop');
+            
+            if (lastEl) {
+                lastEl.classList.remove('fly-in');
+                lastEl.classList.add('pop-out');
+                setTimeout(() => {
+                    arrayData.pop();
+                    render();
+                    log(`v.pop_back(); // removed "${val}"`, "warn");
+                }, 400);
+            }
+        }
+
+        function accessAt() {
+            const idx = parseInt(inputIndex.value);
+            if (isNaN(idx)) { log("Error: INVALID INDEX", "error"); playSound('error'); return; }
+            if (idx < 0 || idx >= arrayData.length) { log(`Error: OUT OF RANGE [0, ${arrayData.length-1}]`, "error"); playSound('error'); return; }
+
+            const el = document.getElementById(`cell-${idx}`);
+            if (el) {
+                // Reset animation
+                el.classList.remove('highlight-access', 'highlight-update', 'fly-in');
+                void el.offsetWidth;
+                el.classList.add('highlight-access');
+                
+                log(`v.at(${idx}) -> "${arrayData[idx]}"`, "success");
+                playSound('access');
+                createExplosion(arrayData[idx], '#bc13fe');
+            }
+        }
+
+        function updateAt() {
+            const idx = parseInt(inputIndex.value);
+            const val = inputValue.value.trim();
+            
+            if (isNaN(idx)) { log("Error: INVALID INDEX", "error"); playSound('error'); return; }
+            if (!val) { log("Error: VALUE REQUIRED", "error"); playSound('error'); return; }
+            if (idx < 0 || idx >= arrayData.length) { log(`Error: OUT OF RANGE`, "error"); playSound('error'); return; }
+
+            const el = document.getElementById(`cell-${idx}`);
+            if (el) {
+                arrayData[idx] = val;
+                // Update content visually
+                el.querySelector('span').textContent = val;
+                
+                el.classList.remove('highlight-access', 'highlight-update', 'fly-in');
+                void el.offsetWidth;
+                el.classList.add('highlight-update');
+                
+                log(`v[${idx}] = "${val}";`, "success");
+                playSound('update');
+            }
+            inputValue.value = "";
+        }
+
+        function createExplosion(text, color) {
+            const overlay = document.createElement('div');
+            overlay.id = 'explosion-overlay';
+            const content = document.createElement('div');
+            content.className = `text-center z-50 p-6 border-2 border-${color === '#00ff9f' ? 'cyber-green' : 'cyber-purple'} bg-black/80 backdrop-blur-sm rounded-lg`;
+            if (color === '#bc13fe') content.style.borderColor = '#bc13fe'; else content.style.borderColor = color;
+
+            const title = document.createElement('div');
+            title.textContent = text;
+            title.className = `text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-400`;
+            title.style.textShadow = `0 0 20px ${color}`;
+            
+            content.appendChild(title); overlay.appendChild(content); document.body.appendChild(overlay);
+            setTimeout(() => { overlay.style.opacity = 0; setTimeout(() => overlay.remove(), 200); }, 800);
+        }
+
+        function checkSize() {
+            log(`v.size() -> ${arrayData.length}`, "success");
+            playSound('access');
+            createExplosion(arrayData.length.toString(), '#00f3ff');
+        }
+
+        function checkEmpty() {
+            playSound('access');
+            const isEmpty = arrayData.length === 0;
+            log(`v.empty() -> ${isEmpty}`, isEmpty ? "warn" : "success");
+            createExplosion(isEmpty ? "TRUE" : "FALSE", isEmpty ? '#ff00ff' : '#00ff9f');
+        }
+
+        // Init Particles & Trail
+        function initFX() {
+            const canvas = document.getElementById('trail-canvas');
+            const ctx = canvas.getContext('2d');
+            let w, h, particles = [];
+            const resize = () => { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; };
+            window.addEventListener('resize', resize); resize();
+
+            const addP = (x,y) => { for(let i=0;i<2;i++) particles.push({x,y,vx:(Math.random()-.5)*2,vy:(Math.random()-.5)*2,life:1,color:Math.random()>.5?'#00f3ff':'#bc13fe'}); };
+            window.addEventListener('mousemove', e=>addP(e.clientX,e.clientY));
+            window.addEventListener('touchmove', e=>addP(e.touches[0].clientX,e.touches[0].clientY));
+
+            function loop() {
+                ctx.clearRect(0,0,w,h);
+                particles.forEach((p,i)=>{ p.x+=p.vx;p.y+=p.vy;p.life-=0.05; ctx.fillStyle=p.color; ctx.globalAlpha=p.life; ctx.beginPath(); ctx.arc(p.x,p.y,2,0,Math.PI*2); ctx.fill(); if(p.life<=0)particles.splice(i,1); });
+                requestAnimationFrame(loop);
+            }
+            loop();
+
+            const isMobile = window.innerWidth < 768;
+            tsParticles.load({
+                id: "tsparticles",
+                options: {
+                    background: { color: { value: "transparent" } },
+                    particles: {
+                        color: { value: "#00f3ff" },
+                        links: { color: "#bc13fe", distance: 150, enable: true, opacity: 0.15, width: 1 },
+                        move: { enable: true, speed: 0.5 },
+                        number: { value: isMobile ? 15 : 40 },
+                        opacity: { value: 0.4 }, size: { value: 2 }
+                    }
+                }
+            });
+        }
+        window.onload = () => {
+            initFX();
+            render();
+        };
+    </script>
+</body>
+</html>

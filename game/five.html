@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>赛博朋克五子棋 - 人机对战</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Courier New', 'Courier', 'monospace', 'system-ui'] },
+                    colors: {
+                        cyber: {
+                            bg: '#050510',
+                            grid: '#1a1a2e',
+                            line: '#2a2a5a', // 调亮网格线颜色
+                            p1: '#00f3ff', // 玩家颜色 (蓝)
+                            p2: '#ff00ff', // AI 颜色 (粉)
+                            win: '#ffee00',
+                        }
+                    },
+                    boxShadow: {
+                        'neon': '0 0 10px #00f3ff, 0 0 20px #00f3ff',
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #050510;
+            color: #e0e0e0;
+            touch-action: none; /* 禁止默认触摸行为，防止缩放 */
+            overflow: hidden;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        /* 游戏容器 */
+        #game-container {
+            position: relative;
+            box-shadow: 0 0 30px rgba(0, 243, 255, 0.15);
+            border-radius: 8px;
+            overflow: hidden;
+            background-color: #0f0f1a; /* 兜底背景色 */
+        }
+
+        /* 画布 */
+        canvas {
+            display: block; /* 防止产生多余间隙 */
+            touch-action: none;
+        }
+
+        /* 按钮 */
+        .btn-cyber {
+            background: rgba(0, 243, 255, 0.1);
+            border: 1px solid #00f3ff;
+            color: #00f3ff;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+        }
+        .btn-cyber:hover {
+            background: #00f3ff;
+            color: #000;
+            box-shadow: 0 0 15px #00f3ff;
+        }
+        .btn-cyber:active {
+            transform: scale(0.95);
+        }
+
+        /* 胜利覆盖层 */
+        #win-overlay {
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(8px);
+            transition: opacity 0.3s, visibility 0.3s;
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        #win-overlay.active {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+        }
+        
+        .glitch-text {
+            text-shadow: 2px 0 #ff00ff, -2px 0 #00f3ff;
+            animation: glitch 1s infinite alternate-reverse;
+        }
+        @keyframes glitch {
+            0% { transform: skew(0deg); }
+            20% { transform: skew(-2deg); }
+            40% { transform: skew(2deg); }
+            100% { transform: skew(0deg); }
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col items-center justify-center font-mono bg-cyber-bg">
+
+    <!-- 标题与状态 -->
+    <div class="w-full max-w-[600px] px-4 mb-4 flex justify-between items-center z-10">
+        <div>
+            <h1 class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyber-p1 to-cyber-p2 italic">
+                GOBANG_AI
+            </h1>
+            <div id="status-text" class="text-xs text-cyber-p1 tracking-widest mt-1">
+                SYSTEM READY...
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="restartGame()" class="btn-cyber px-4 py-2 text-xs font-bold rounded">
+                RESTART
+            </button>
+        </div>
+    </div>
+
+    <!-- 游戏主区域 -->
+    <div id="game-container">
+        <canvas id="board-canvas"></canvas>
+        <!-- 思考中提示 -->
+        <div id="ai-thinking" class="absolute top-2 right-2 text-[10px] text-cyber-p2 animate-pulse hidden bg-black/50 px-2 rounded">
+            AI COMPUTING...
+        </div>
+    </div>
+
+    <!-- 胜利/失败结算弹窗 -->
+    <div id="win-overlay" class="fixed inset-0 flex flex-col items-center justify-center z-50">
+        <h2 id="win-title" class="text-5xl font-black mb-2 glitch-text tracking-widest text-center">VICTORY</h2>
+        <p id="win-desc" class="text-cyber-p1 text-sm tracking-[0.5em] mb-8 text-center">HUMANITY PREVAILS</p>
+        <button onclick="restartGame()" class="btn-cyber px-8 py-3 text-lg font-bold">
+            PLAY AGAIN
+        </button>
+    </div>
+
+    <!-- 底部操作提示 -->
+    <div class="mt-6 text-[10px] text-gray-500 tracking-widest text-center">
+        <span class="text-cyber-p1">● YOU (FIRST)</span> 
+        <span class="mx-2">|</span> 
+        <span class="text-cyber-p2">● AI (NEON)</span>
+    </div>
+
+    <script>
+        // --- 配置 ---
+        const GRID_SIZE = 15;
+        let CELL_SIZE = 0;
+        let PADDING = 0;
+        
+        // 颜色配置
+        const COLORS = {
+            bg: '#050510',
+            line: '#2a2a5a', // 亮色线条，确保可见
+            p1: '#00f3ff', // 玩家
+            p2: '#ff00ff', // AI
+            winLine: '#ffee00'
+        };
+
+        // --- 游戏状态 ---
+        const canvas = document.getElementById('board-canvas');
+        const ctx = canvas.getContext('2d');
+        const statusText = document.getElementById('status-text');
+        const aiThinkingIndicator = document.getElementById('ai-thinking');
+        const winOverlay = document.getElementById('win-overlay');
+        const winTitle = document.getElementById('win-title');
+        const winDesc = document.getElementById('win-desc');
+
+        let board = []; // 0: 空, 1: 玩家, 2: AI
+        let isPlayerTurn = true;
+        let gameOver = false;
+        let winPath = []; // 存储胜利连线的坐标
+        let lastMove = null; // {x, y}
+
+        // --- 音效系统 (Web Audio API) ---
+        let audioCtx = null;
+        function playSound(type) {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                const now = audioCtx.currentTime;
+
+                if (type === 'p1') { 
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(800, now); osc.frequency.exponentialRampToValueAtTime(1200, now + 0.1); gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15); osc.start(now); osc.stop(now + 0.15);
+                } else if (type === 'ai') { 
+                    osc.type = 'square'; osc.frequency.setValueAtTime(200, now); osc.frequency.exponentialRampToValueAtTime(100, now + 0.15); gain.gain.setValueAtTime(0.05, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15); osc.start(now); osc.stop(now + 0.15);
+                } else if (type === 'win') { 
+                    osc.type = 'triangle'; osc.frequency.setValueAtTime(400, now); osc.frequency.linearRampToValueAtTime(800, now + 0.2); gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 1); osc.start(now); osc.stop(now + 1);
+                } else if (type === 'lose') { 
+                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(100, now); osc.frequency.linearRampToValueAtTime(50, now + 0.5); gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5); osc.start(now); osc.stop(now + 0.5);
+                }
+            } catch (e) {
+                console.log("Audio not supported or blocked");
+            }
+        }
+
+        // --- 初始化与尺寸 ---
+        // 关键修复：添加了遗漏的 init 函数
+        function init() {
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            resetBoard();
+        }
+
+        function resizeCanvas() {
+            // 确保有最小尺寸，且不超过屏幕
+            const maxWidth = 600;
+            // 减去的数值包括 padding 和 header/footer 的高度预估
+            let availableSize = Math.min(window.innerWidth - 32, window.innerHeight - 150);
+            
+            // 保证最小 300px 以免无法点击
+            if (availableSize < 300) availableSize = 300; 
+            
+            const size = Math.min(availableSize, maxWidth);
+            
+            // 设置 Canvas 分辨率（处理高清屏模糊问题）
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = size * dpr;
+            canvas.height = size * dpr;
+            
+            // 设置 CSS 尺寸
+            canvas.style.width = `${size}px`;
+            canvas.style.height = `${size}px`;
+            
+            // 缩放 Context
+            ctx.scale(dpr, dpr);
+            
+            // 计算格子参数 (基于 CSS 尺寸计算)
+            PADDING = size * 0.06;
+            CELL_SIZE = (size - 2 * PADDING) / (GRID_SIZE - 1);
+            
+            draw();
+        }
+
+        function resetBoard() {
+            board = Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(0));
+            isPlayerTurn = true;
+            gameOver = false;
+            winPath = [];
+            lastMove = null;
+            winOverlay.classList.remove('active');
+            statusText.textContent = "PLAYER TURN // WAITING INPUT";
+            statusText.className = "text-xs text-cyber-p1 tracking-widest mt-1";
+            draw();
+        }
+
+        function restartGame() {
+            playSound('p1');
+            resetBoard();
+        }
+
+        // --- 交互逻辑 ---
+        function handleInput(e) {
+            if (gameOver || !isPlayerTurn) return;
+            // 阻止默认触摸事件（如缩放、滚动）
+            if (e.type === 'touchstart') e.preventDefault();
+
+            const rect = canvas.getBoundingClientRect();
+            // 处理触摸或鼠标事件的坐标
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+
+            // 坐标转换
+            const col = Math.round((x - PADDING) / CELL_SIZE);
+            const row = Math.round((y - PADDING) / CELL_SIZE);
+
+            // 范围检查
+            if (col < 0 || col >= GRID_SIZE || row < 0 || row >= GRID_SIZE) return;
+            
+            // 点击判定范围宽容度 (格子的一半)
+            const gridX = PADDING + col * CELL_SIZE;
+            const gridY = PADDING + row * CELL_SIZE;
+            const dist = Math.sqrt((x - gridX)**2 + (y - gridY)**2);
+            
+            // 如果点击位置距离交叉点太远，不触发（防止误触）
+            if (dist > CELL_SIZE * 0.6) return;
+
+            if (board[row][col] === 0) {
+                placePiece(row, col, 1);
+            }
+        }
+
+        function placePiece(row, col, player) {
+            board[row][col] = player;
+            lastMove = { r: row, c: col };
+            playSound(player === 1 ? 'p1' : 'ai');
+            draw();
+
+            const win = checkWin(row, col, player);
+            if (win) {
+                gameOver = true;
+                winPath = win;
+                draw();
+                setTimeout(() => showResult(player), 300);
+                return;
+            }
+
+            if (player === 1) {
+                isPlayerTurn = false;
+                statusText.textContent = "AI TURN // CALCULATING...";
+                statusText.className = "text-xs text-cyber-p2 tracking-widest mt-1 animate-pulse";
+                aiThinkingIndicator.style.display = 'block';
+                // 确保 UI 渲染后再计算 AI
+                setTimeout(() => {
+                    requestAnimationFrame(aiMove);
+                }, 100);
+            } else {
+                isPlayerTurn = true;
+                statusText.textContent = "PLAYER TURN // WAITING INPUT";
+                statusText.className = "text-xs text-cyber-p1 tracking-widest mt-1";
+                aiThinkingIndicator.style.display = 'none';
+            }
+        }
+
+        function showResult(winner) {
+            if (winner === 1) {
+                winTitle.textContent = "VICTORY";
+                winTitle.className = "text-5xl font-black mb-2 glitch-text tracking-widest text-center text-cyber-p1";
+                winDesc.textContent = "TARGET ELIMINATED";
+                playSound('win');
+            } else {
+                winTitle.textContent = "DEFEAT";
+                winTitle.className = "text-5xl font-black mb-2 glitch-text tracking-widest text-center text-cyber-p2";
+                winDesc.textContent = "SYSTEM DOMINANCE";
+                playSound('lose');
+            }
+            winOverlay.classList.add('active');
+        }
+
+        // --- 核心算法 ---
+        function checkWin(r, c, player) {
+            const directions = [
+                [[0, 1], [0, -1]], [[1, 0], [-1, 0]], [[1, 1], [-1, -1]], [[1, -1], [-1, 1]]
+            ];
+            for (let axis of directions) {
+                let count = 1;
+                let path = [{r, c}];
+                for (let dir of axis) {
+                    let dr = dir[0], dc = dir[1];
+                    let nr = r + dr, nc = c + dc;
+                    while (nr >= 0 && nr < GRID_SIZE && nc >= 0 && nc < GRID_SIZE && board[nr][nc] === player) {
+                        count++;
+                        path.push({r: nr, c: nc});
+                        nr += dr; nc += dc;
+                    }
+                }
+                if (count >= 5) return path;
+            }
+            return null;
+        }
+
+        function aiMove() {
+            let bestScore = -Infinity;
+            let bestMoves = [];
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    if (board[r][c] !== 0) continue;
+                    let scoreAI = evaluatePoint(r, c, 2);
+                    let scorePlayer = evaluatePoint(r, c, 1);
+                    let finalScore = scoreAI + scorePlayer * 0.8;
+                    if (scoreAI >= 100000) finalScore = 200000;
+                    else if (scorePlayer >= 100000) finalScore = 100000; 
+
+                    if (finalScore > bestScore) {
+                        bestScore = finalScore;
+                        bestMoves = [{r, c}];
+                    } else if (finalScore === bestScore) {
+                        bestMoves.push({r, c});
+                    }
+                }
+            }
+            if (bestMoves.length === 0) { placePiece(7, 7, 2); return; }
+            const move = bestMoves[Math.floor(Math.random() * bestMoves.length)];
+            placePiece(move.r, move.c, 2);
+        }
+
+        function evaluatePoint(r, c, player) {
+            let score = 0;
+            const directions = [[1, 0], [0, 1], [1, 1], [1, -1]];
+            for (let [dr, dc] of directions) {
+                let count = 1, emptySide = 0;
+                let i = 1;
+                while (true) {
+                    let nr = r + dr * i, nc = c + dc * i;
+                    if (nr < 0 || nr >= GRID_SIZE || nc < 0 || nc >= GRID_SIZE) break;
+                    if (board[nr][nc] === player) count++;
+                    else if (board[nr][nc] === 0) { emptySide++; break; }
+                    else break;
+                    i++;
+                }
+                i = 1;
+                while (true) {
+                    let nr = r - dr * i, nc = c - dc * i;
+                    if (nr < 0 || nr >= GRID_SIZE || nc < 0 || nc >= GRID_SIZE) break;
+                    if (board[nr][nc] === player) count++;
+                    else if (board[nr][nc] === 0) { emptySide++; break; }
+                    else break;
+                    i++;
+                }
+                score += getScore(count, emptySide);
+            }
+            return score;
+        }
+
+        function getScore(count, emptySide) {
+            if (count >= 5) return 100000;
+            if (count === 4) return emptySide === 2 ? 10000 : 1000;
+            if (count === 3) return emptySide === 2 ? 1000 : 100;
+            if (count === 2) return emptySide === 2 ? 100 : 10;
+            return 0;
+        }
+
+        // --- 绘制 ---
+        function draw() {
+            // 获取实际 CSS 尺寸进行绘制计算
+            const size = parseFloat(canvas.style.width);
+            
+            // 清空 (使用 scale 后的逻辑坐标)
+            ctx.clearRect(0, 0, size, size);
+
+            // 绘制网格
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = COLORS.line;
+            ctx.beginPath();
+            for (let i = 0; i < GRID_SIZE; i++) {
+                const pos = PADDING + i * CELL_SIZE;
+                // 确保线条锐利，+0.5 偏移
+                const drawPos = Math.floor(pos) + 0.5;
+                ctx.moveTo(PADDING, drawPos);
+                ctx.lineTo(size - PADDING, drawPos);
+                ctx.moveTo(drawPos, PADDING);
+                ctx.lineTo(drawPos, size - PADDING);
+            }
+            ctx.stroke();
+
+            // 绘制星位
+            const stars = [3, 7, 11];
+            ctx.fillStyle = '#00f3ff';
+            for (let r of stars) {
+                for (let c of stars) {
+                    ctx.beginPath();
+                    ctx.arc(PADDING + c * CELL_SIZE, PADDING + r * CELL_SIZE, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // 绘制棋子
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    if (board[r][c] !== 0) drawPiece(r, c, board[r][c]);
+                }
+            }
+
+            // 绘制最后一手高亮
+            if (lastMove) {
+                const x = PADDING + lastMove.c * CELL_SIZE;
+                const y = PADDING + lastMove.r * CELL_SIZE;
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(x - 4, y); ctx.lineTo(x + 4, y);
+                ctx.moveTo(x, y - 4); ctx.lineTo(x, y + 4);
+                ctx.stroke();
+            }
+
+            // 绘制胜利线
+            if (winPath.length > 0) {
+                ctx.beginPath();
+                ctx.strokeStyle = COLORS.winLine;
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+                ctx.shadowColor = COLORS.winLine;
+                ctx.shadowBlur = 10;
+                const start = winPath[0];
+                ctx.moveTo(PADDING + start.c * CELL_SIZE, PADDING + start.r * CELL_SIZE);
+                for (let i = 1; i < winPath.length; i++) {
+                    const p = winPath[i];
+                    ctx.lineTo(PADDING + p.c * CELL_SIZE, PADDING + p.r * CELL_SIZE);
+                }
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        function drawPiece(r, c, player) {
+            const x = PADDING + c * CELL_SIZE;
+            const y = PADDING + r * CELL_SIZE;
+            const radius = CELL_SIZE * 0.4;
+
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            if (player === 1) { // 玩家
+                ctx.strokeStyle = COLORS.p1;
+                ctx.lineWidth = 2;
+                ctx.shadowColor = COLORS.p1;
+                ctx.shadowBlur = 8;
+                ctx.stroke();
+                ctx.fillStyle = 'rgba(0, 243, 255, 0.2)';
+                ctx.fill();
+            } else { // AI
+                ctx.fillStyle = COLORS.p2;
+                ctx.shadowColor = COLORS.p2;
+                ctx.shadowBlur = 8;
+                ctx.fill();
+            }
+            ctx.shadowBlur = 0;
+        }
+
+        // 初始化绑定
+        window.onload = init;
+        
+        // 同时支持鼠标点击和触摸
+        canvas.addEventListener('mousedown', handleInput);
+        canvas.addEventListener('touchstart', handleInput, {passive: false});
+
+    </script>
+</body>
+</html>

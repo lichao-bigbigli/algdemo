@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>赛博朋克选择排序演示</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tsparticles@2.12.0/tsparticles.bundle.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: { extend: {
+                fontFamily: { sans: ['Courier New', 'Courier', 'monospace', 'system-ui'] },
+                colors: { cyber: { black: '#020205', dark: '#0a0a12', blue: '#00f3ff', pink: '#ff00ff', purple: '#bc13fe', yellow: '#ffee00', green: '#00ff9f' } }
+            }}
+        }
+    </script>
+    <style>
+        body { background-color: #020205; color: #e0e0e0; touch-action: manipulation; overscroll-behavior: none; }
+        #tsparticles { position: fixed; inset: 0; z-index: -1; }
+        .sidebar-cyber { background: rgba(10,10,18,0.92); backdrop-filter: blur(16px); border-top: 1px solid rgba(0,243,255,0.3); }
+        @media (min-width:768px) { .sidebar-cyber { border-top: none; border-right: 2px solid #00f3ff; } }
+        .btn-cyber { border: 2px solid; transition: all .2s; font-family:'Courier New',monospace; cursor:pointer; }
+        .btn-cyber-blue { border-color:#00f3ff; color:#00f3ff; }
+        .btn-cyber-blue:active { background:#00f3ff; color:#000; box-shadow:0 0 20px #00f3ff; }
+        .btn-cyber-green { border-color:#00ff9f; color:#00ff9f; }
+        .btn-cyber-green:active { background:#00ff9f; color:#000; box-shadow:0 0 20px #00ff9f; }
+        .btn-cyber-pink { border-color:#ff00ff; color:#ff00ff; }
+        .btn-cyber-pink:active { background:#ff00ff; color:#000; box-shadow:0 0 20px #ff00ff; }
+        .cell { transition: all .35s cubic-bezier(.34,1.56,.64,1); background: rgba(0,243,255,.05); border: 1px solid rgba(0,243,255,.3); }
+        .cell.active { border-color:#00f3ff; background:rgba(0,243,255,.2); box-shadow:0 0 15px #00f3ff; }
+        .cell.compare { border-color:#ffee00; background:rgba(255,238,0,.18); box-shadow:0 0 12px #ffee00; }
+        .cell.swap { border-color:#ff00ff; background:rgba(255,0,255,.2); box-shadow:0 0 15px #ff00ff; }
+        .cell.sorted, .cell.best, .cell.done { border-color:#00ff9f; background:rgba(0,255,159,.22); box-shadow:0 0 10px rgba(0,255,159,.5); }
+        .cell.pivot { border-color:#bc13fe; background:rgba(188,19,254,.25); box-shadow:0 0 15px #bc13fe; }
+        .cell.min { border-color:#00ff9f; background:rgba(0,255,159,.25); box-shadow:0 0 12px #00ff9f; }
+        .cell.relax { border-color:#ffee00; background:rgba(255,238,0,.18); box-shadow:0 0 12px #ffee00; }
+        .cell.edge { border-color:#ff00ff; background:rgba(255,0,255,.15); box-shadow:0 0 12px #ff00ff; }
+        .cell.found { border-color:#00ff9f; background:rgba(0,255,159,.35); box-shadow:0 0 20px #00ff9f; }
+        .node { width:48px; height:48px; border-radius:50%; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+        .dp-table { border-collapse: collapse; margin: 0 auto; }
+        .dp-table td { border:1px solid rgba(0,243,255,.35); padding:10px 16px; font-size:16px; min-width:60px;
+            text-align:center; transition: all .3s; color:#e0e0e0; }
+        .dp-table td.h { color:#bc13fe; font-weight:bold; background:rgba(188,19,254,.08); }
+        .dp-table td.cur { border-color:#ffee00; background:rgba(255,238,0,.2); box-shadow:0 0 8px #ffee00 inset; color:#ffee00; font-weight:bold; }
+        .dp-table td.best { border-color:#00ff9f; background:rgba(0,255,159,.22); color:#00ff9f; font-weight:bold; }
+        .scroll-container { width:100%; height:100%; overflow:auto; -webkit-overflow-scrolling:touch;
+            scrollbar-width:thin; scrollbar-color:#00f3ff #0a0a12; }
+        #visual { display:flex; align-items:flex-end; justify-content:center; gap:0.5rem; padding:2.5rem; min-height:320px; }
+        .scroll-container::-webkit-scrollbar { height:8px; width:8px; }
+        .scroll-container::-webkit-scrollbar-track { background:rgba(10,10,18,.8); }
+        .scroll-container::-webkit-scrollbar-thumb { background:#00f3ff; border-radius:4px; }
+        .back-link { color:#00f3ff; text-decoration:none; font-size:10px; letter-spacing:.15em; }
+        .back-link:hover { text-shadow:0 0 8px #00f3ff; }
+    </style>
+</head>
+<body class="overflow-hidden flex flex-col-reverse md:flex-row h-screen w-screen font-mono">
+    <div id="tsparticles"></div>
+    <aside class="w-full md:w-[380px] sidebar-cyber flex flex-col z-20 flex-shrink-0 h-[45%] md:h-full shadow-[5px_0_15px_rgba(0,0,0,0.5)]">
+        <div class="hidden md:block p-6 border-b border-cyber-blue/30 bg-gradient-to-br from-cyber-blue/10 to-transparent">
+            <h1 class="text-3xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyber-blue to-cyber-purple drop-shadow-[0_0_8px_rgba(0,243,255,0.4)]">SELECTION_SORT</h1>
+            <p class="text-[10px] text-cyber-blue/60 mt-1 uppercase tracking-widest">Algorithm Visualizer</p>
+            <a class="back-link" href="../index.html">&#60;&#60; BACK_TO_NAV [&lt;- 返回导航]</a>
+        </div>
+        <div class="md:hidden px-4 pt-3 flex items-center justify-between">
+            <span class="text-lg font-black italic text-cyber-blue">SELECTION_SORT</span>
+            <a class="back-link" href="../index.html">&lt;- 返回导航</a>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 space-y-5">
+            <div class="space-y-3 p-4 bg-black/40 border border-cyber-blue/30 relative">
+                <div class="absolute top-0 left-0 w-2 h-2 border-t border-l border-cyber-blue"></div>
+                <div class="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-cyber-blue"></div>
+                <label class="block text-[10px] text-cyber-blue font-bold tracking-widest uppercase">&gt;&gt; Data Config</label>
+                
+                <div class="flex items-center gap-3">
+                    <div class="flex-1">
+                        <p class="text-[10px] text-gray-500 mb-1">数据个数 (5-40)</p>
+                        <input type="number" id="size" value="15" min="5" max="40" class="w-full bg-black border border-gray-600 text-white text-center py-2 text-sm focus:border-cyber-blue outline-none transition-colors">
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-[10px] text-gray-500 mb-1">值域上限</p>
+                        <input type="number" id="maxval" value="100" min="10" max="999" class="w-full bg-black border border-gray-600 text-white text-center py-2 text-sm focus:border-cyber-blue outline-none transition-colors">
+                    </div>
+                </div>
+                <button onclick="generateData()" class="w-full btn-cyber btn-cyber-blue py-2 text-xs font-bold uppercase tracking-wider">↻ 生成随机数据</button>
+            </div>
+            <div class="space-y-3 pt-2">
+                <label class="block text-[10px] text-cyber-green font-bold tracking-widest uppercase">&gt;&gt; Step Control</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <button id="btn-prev" class="btn-cyber btn-cyber-blue py-3 text-xs font-bold tracking-wider">⏮ 上一步</button>
+                    <button id="btn-play" class="btn-cyber btn-cyber-green py-3 text-xs font-bold tracking-wider">▶ 播放</button>
+                    <button id="btn-next" class="btn-cyber btn-cyber-pink py-3 text-xs font-bold tracking-wider">⏭ 下一步</button>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="flex-1">
+                        <p class="text-[10px] text-gray-500 mb-1">动画速度 <span id="speed-val" class="text-cyber-yellow">50</span>ms</p>
+                        <input type="range" id="speed" min="5" max="300" value="50" class="w-full">
+                    </div>
+                    <div class="text-center">
+                        <p class="text-[10px] text-gray-500 mb-1">步数</p>
+                        <span id="pos" class="text-cyber-yellow text-base font-bold">0/0</span>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 bg-black/40 border border-cyber-green/30 relative">
+                <div class="absolute top-0 left-0 w-2 h-2 border-t border-l border-cyber-green"></div>
+                <label class="block text-[10px] text-cyber-green font-bold tracking-widest uppercase mb-2">&gt;&gt; Status Log</label>
+                <div id="log" class="text-[11px] leading-5 text-gray-400 h-28 overflow-y-auto">READY_</div>
+            </div>
+        </div>
+    </aside>
+    <main class="flex-1 relative overflow-hidden">
+        <div class="absolute top-4 left-4 z-10 text-[10px] text-cyber-blue/70 tracking-widest uppercase">赛博朋克选择排序演示 // O(n^2)</div>
+        <div id="status-bar" class="absolute top-4 right-4 z-10 text-[12px] text-cyber-yellow tracking-wider"></div>
+        <div class="scroll-container h-full"><div id="visual"></div></div>
+    </main>
+    <script>
+        // ===== shared step runtime =====
+        const visual = document.getElementById('visual');
+        const logEl = document.getElementById('log');
+        const statusBar = document.getElementById('status-bar');
+        const posEl = document.getElementById('pos');
+        const playBtn = document.getElementById('btn-play');
+        let data = [];
+        let steps = [], stepIdx = -1, gen = null, playing = false, playTimer = null, finished = false;
+        const clamp = (v, a, b) => Math.max(a, Math.min(b, isNaN(v) ? a : v));
+        const speedMs = () => +document.getElementById('speed').value;
+        function log(m) {
+            const d = document.createElement('div');
+            d.textContent = '> ' + m; d.className = 'text-cyber-blue/80';
+            logEl.insertBefore(d, logEl.firstChild);
+            logEl.scrollTop = 0;
+            if (logEl.children.length > 150) logEl.removeChild(logEl.lastChild);
+        }
+        function capture() { return { vis: visual.innerHTML, st: statusBar.textContent, lg: logEl.innerHTML }; }
+        function show(i) {
+            const s = steps[i]; stepIdx = i;
+            visual.innerHTML = s.vis; statusBar.textContent = s.st; logEl.innerHTML = s.lg;
+            logEl.scrollTop = 0;
+            posEl.textContent = (stepIdx + 1) + '/' + steps.length;
+        }
+        function resetSteps() {
+            playing = false; clearTimeout(playTimer); playBtn.textContent = '▶ 播放';
+            gen = null; steps = []; stepIdx = -1; finished = false;
+            logEl.innerHTML = 'READY_'; statusBar.textContent = ''; posEl.textContent = '0/0';
+        }
+        function generateData() { resetSteps(); buildData(); }
+        function advanceOne() {
+            if (finished) return 'done';
+            if (!gen) { logEl.innerHTML = ''; gen = algorithmGen(); }
+            const r = gen.next();
+            steps.push(capture());
+            if (r.done) { gen = null; finished = true; return 'done'; }
+            return 'step';
+        }
+        function stepNext() {
+            pause();
+            if (stepIdx < steps.length - 1) { show(stepIdx + 1); return; }
+            const res = advanceOne();
+            show(steps.length - 1);
+            if (res === 'done') log('已到最后一步');
+        }
+        function stepPrev() { pause(); if (stepIdx > 0) show(stepIdx - 1); }
+        function pause() { playing = false; clearTimeout(playTimer); playBtn.textContent = '▶ 播放'; }
+        function play() {
+            if (playing) { pause(); return; }
+            playing = true; playBtn.textContent = '⏸ 暂停';
+            const loop = () => {
+                if (!playing) return;
+                if (stepIdx < steps.length - 1) { show(stepIdx + 1); }
+                else {
+                    const res = advanceOne();
+                    show(steps.length - 1);
+                    if (res === 'done') { pause(); return; }
+                }
+                playTimer = setTimeout(loop, speedMs());
+            };
+            loop();
+        }
+        document.getElementById('btn-prev').onclick = stepPrev;
+        document.getElementById('btn-next').onclick = stepNext;
+        playBtn.onclick = play;
+        document.getElementById('speed').oninput = e => document.getElementById('speed-val').textContent = e.target.value;
+        window.addEventListener('load', () => {
+            tsParticles.load({ id: 'tsparticles', options: {
+                background: { color: { value: 'transparent' } },
+                particles: {
+                    color: { value: '#00f3ff' },
+                    links: { enable: true, opacity: 0.1, distance: 130, color: '#00f3ff' },
+                    move: { enable: true, speed: 0.5 },
+                    number: { value: 35, density: { enable: true, area: 800 } },
+                    opacity: { value: 0.25 },
+                    size: { value: { min: 1, max: 2 } }
+                }
+            }});
+            generateData();
+        });
+    </script>
+    <script>
+
+        // ===== array bars =====
+        function buildData() {
+            const n = clamp(+document.getElementById('size').value, 5, 40);
+            const mx = clamp(+document.getElementById('maxval').value, 10, 999);
+            data = Array.from({ length: n }, () => 1 + Math.floor(Math.random() * mx));
+            render();
+        }
+        function render() {
+            visual.innerHTML = '';
+            const mx = Math.max(...data, 1);
+            data.forEach((val, i) => {
+                const bar = document.createElement('div');
+                bar.className = 'cell flex items-end justify-center';
+                bar.style.height = Math.max(44, Math.round(val / mx * 240)) + 'px';
+                bar.style.width = Math.max(28, Math.min(64, Math.floor(900 / data.length))) + 'px';
+                bar.innerHTML = '<span class="text-xs text-cyber-blue font-bold pb-1">' + val + '</span>';
+                visual.appendChild(bar);
+            });
+        }
+        function markSorted(i) { visual.children[i].classList.add('sorted'); }
+        function* swapAnim(i, j) {
+            const bars = visual.children;
+            bars[i].classList.add('swap'); bars[j].classList.add('swap');
+            yield;
+            [data[i], data[j]] = [data[j], data[i]];
+            render();
+        }
+
+        function* algorithmGen() {
+            for (let i = 0; i < data.length - 1; i++) {
+                let min = i;
+                for (let j = i + 1; j < data.length; j++) {
+                    const bars = visual.children;
+                    bars[j].classList.add('compare'); bars[min].classList.add('min');
+                    statusBar.textContent = `寻找最小值: 当前最小 data[${min}]=${data[min]}`;
+                    yield;
+                    bars[j].classList.remove('compare'); bars[min].classList.remove('min');
+                    if (data[j] < data[min]) min = j;
+                }
+                if (min !== i) { yield* swapAnim(i, min); log(`最小值 ${data[i]} 交换到位置 ${i}`); }
+                markSorted(i);
+                yield;
+            }
+            markSorted(data.length - 1);
+            statusBar.textContent = 'SORTED ✓';
+            log('选择排序完成');
+        }
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>赛博朋克栈操作演示</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tsparticles/engine@2/tsparticles.engine.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tsparticles/preset-links@2/tsparticles.preset.links.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Courier New', 'Courier', 'monospace', 'system-ui'] },
+                    colors: {
+                        cyber: {
+                            black: '#020205',
+                            dark: '#0a0a12',
+                            blue: '#00f3ff',
+                            pink: '#ff00ff',
+                            purple: '#bc13fe',
+                            yellow: '#ffee00',
+                            green: '#00ff9f',
+                        }
+                    },
+                    boxShadow: {
+                        'neon-blue': '0 0 5px #00f3ff, 0 0 10px #00f3ff',
+                        'neon-pink': '0 0 5px #ff00ff, 0 0 10px #ff00ff',
+                        'neon-green': '0 0 5px #00ff9f, 0 0 10px #00ff9f',
+                        'neon-purple': '0 0 5px #bc13fe, 0 0 10px #bc13fe',
+                    },
+                    animation: {
+                        'glitch': 'glitch 1s linear infinite',
+                        'pulse-fast': 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'spin-slow': 'spin 20s linear infinite',
+                        'spin-reverse-slow': 'spinReverse 25s linear infinite',
+                        'typing': 'typing 2s steps(40, end)',
+                    },
+                    keyframes: {
+                        glitch: {
+                            '2%, 64%': { transform: 'translate(2px,0) skew(0deg)' },
+                            '4%, 60%': { transform: 'translate(-2px,0) skew(0deg)' },
+                            '62%': { transform: 'translate(0,0) skew(5deg)' },
+                        },
+                        spinReverse: {
+                            '0%': { transform: 'rotate(360deg)' },
+                            '100%': { transform: 'rotate(0deg)' },
+                        },
+                        typing: {
+                            'from': { width: '0' },
+                            'to': { width: '100%' },
+                        }
+                    },
+                    screens: {
+                        'xs': '375px', 
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #020205;
+            color: #e0e0e0;
+            touch-action: manipulation;
+        }
+
+        #tsparticles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+        #trail-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; }
+
+        .sidebar-cyber {
+            background: rgba(10, 10, 18, 0.9);
+            backdrop-filter: blur(12px);
+            border-top: 2px solid #00f3ff; 
+            box-shadow: 0 -5px 15px rgba(0, 243, 255, 0.1);
+        }
+        @media (min-width: 768px) {
+            .sidebar-cyber {
+                border-top: none;
+                border-right: 2px solid #00f3ff;
+                box-shadow: 5px 0 15px rgba(0, 243, 255, 0.1);
+            }
+        }
+
+        .btn-cyber {
+            position: relative; background: transparent; border: 2px solid;
+            letter-spacing: 1px; transition: all 0.3s; overflow: hidden; z-index: 1;
+            font-family: 'Courier New', monospace; touch-action: manipulation; 
+        }
+        
+        .btn-cyber-blue { border-color: #00f3ff; color: #00f3ff; text-shadow: 0 0 8px rgba(0, 243, 255, 0.8); box-shadow: 0 0 10px rgba(0, 243, 255, 0.2); }
+        .btn-cyber-blue:hover, .btn-cyber-blue:active { background: #00f3ff; color: #000; box-shadow: 0 0 20px #00f3ff; }
+
+        .btn-cyber-pink { border-color: #ff00ff; color: #ff00ff; text-shadow: 0 0 8px rgba(255, 0, 255, 0.8); box-shadow: 0 0 10px rgba(255, 0, 255, 0.2); }
+        .btn-cyber-pink:hover, .btn-cyber-pink:active { background: #ff00ff; color: #000; box-shadow: 0 0 20px #ff00ff; }
+
+        .btn-cyber-purple { border-color: #bc13fe; color: #bc13fe; box-shadow: 0 0 5px rgba(188, 19, 254, 0.3); }
+        .btn-cyber-purple:hover, .btn-cyber-purple:active { background: #bc13fe; color: #fff; box-shadow: 0 0 15px #bc13fe; }
+
+        .btn-cyber-gray { border-color: #4b5563; color: #9ca3af; }
+        .btn-cyber-gray:hover, .btn-cyber-gray:active { border-color: #e5e7eb; color: #fff; box-shadow: 0 0 10px #fff; }
+
+        .stack-item {
+            background: rgba(0, 243, 255, 0.1); border: 2px solid #00f3ff; color: #00f3ff;
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.2); font-family: 'Courier New', monospace;
+            text-shadow: 0 0 5px #00f3ff; transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .stack-item.top-item {
+            border-color: #ff00ff; color: #ff00ff; background: rgba(255, 0, 255, 0.15);
+            box-shadow: 0 0 15px rgba(255, 0, 255, 0.4); text-shadow: 0 0 8px #ff00ff; z-index: 10;
+        }
+
+        .fly-in { animation: cyberDrop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+        @keyframes cyberDrop { 0% { opacity: 0; transform: translateY(-400px) rotateX(90deg); filter: blur(10px); } 100% { opacity: 1; transform: translateY(0) rotateX(0); filter: blur(0); } }
+
+        .pop-animation { animation: cyberPopUp 0.6s ease-in forwards !important; }
+        @keyframes cyberPopUp { 0% { transform: translateY(0) scale(1); opacity: 1; filter: brightness(1); } 30% { transform: translateY(10px) scale(0.9); opacity: 1; } 100% { transform: translateY(-500px) rotate(45deg) scale(1.2); opacity: 0; filter: blur(5px); } }
+
+        .glitch-text { position: relative; color: #fff; font-weight: 900; text-shadow: 2px 2px #ff00ff, -2px -2px #00f3ff; animation: glitch 1s infinite; }
+        
+        #explosion-overlay { pointer-events: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 100; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.4); }
+        .explosion-particle { position: absolute; pointer-events: none; box-shadow: 0 0 10px currentColor; }
+
+        .geo-circle { position: absolute; border-radius: 50%; border: 1px dashed rgba(0, 243, 255, 0.15); pointer-events: none; z-index: 0; }
+        .geo-square { position: absolute; border: 1px solid rgba(188, 19, 254, 0.1); pointer-events: none; z-index: 0; }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #0a0a12; }
+        ::-webkit-scrollbar-thumb { background: #00f3ff; border-radius: 2px; }
+        .h-dvh { height: 100vh; height: 100dvh; }
+    </style>
+</head>
+<body class="overflow-hidden flex flex-col-reverse md:flex-row h-dvh w-screen font-mono">
+
+    <div id="tsparticles"></div>
+    <canvas id="trail-canvas"></canvas>
+
+    <!-- Background Geometry -->
+    <div class="fixed inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
+        <div class="geo-circle w-[300px] h-[300px] md:w-[600px] md:h-[600px] animate-spin-slow border-t-transparent border-l-transparent"></div>
+        <div class="geo-circle w-[220px] h-[220px] md:w-[450px] md:h-[450px] animate-spin-reverse-slow border-b-transparent border-r-transparent" style="border-color: rgba(255, 0, 255, 0.15);"></div>
+        <div class="geo-square w-[150px] h-[150px] md:w-[300px] md:h-[300px] animate-spin-slow" style="transform: rotate(45deg);"></div>
+        <div class="absolute inset-0 bg-[linear-gradient(rgba(0,243,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,243,255,0.03)_1px,transparent_1px)] bg-[size:30px_30px] md:bg-[size:50px_50px] [transform:perspective(500px)_rotateX(60deg)_scale(3)] origin-top opacity-50"></div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="w-full md:w-96 sidebar-cyber flex flex-col z-20 flex-shrink-0 h-[45%] md:h-full">
+        <div class="hidden md:block p-6 border-b border-cyber-blue/30 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-cyber-blue/20 to-transparent"></div>
+            <h1 class="text-3xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyber-blue to-cyber-pink drop-shadow-[0_0_10px_rgba(0,243,255,0.5)]">STD::STACK</h1>
+            <p class="text-[10px] text-cyber-blue/70 mt-1 tracking-[0.3em]">C++ STL VISUALIZER</p>
+        </div>
+        
+        <div class="md:hidden w-full h-1 bg-cyber-blue/20 mx-auto mt-2 mb-1 w-1/4 rounded-full"></div>
+
+        <div class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6">
+            
+            <!-- Standard Input -->
+            <div class="space-y-1 md:space-y-2 group">
+                <label class="text-[10px] text-cyber-pink font-bold uppercase tracking-widest">>> MANUAL_INPUT</label>
+                <div class="relative">
+                    <input type="text" id="input-value" placeholder="Type value..." 
+                           class="w-full bg-cyber-black/50 border-2 border-gray-700 text-cyber-blue rounded-none px-3 py-2 md:px-4 md:py-3 focus:border-cyber-blue focus:shadow-neon-blue outline-none transition-all placeholder-gray-600 font-bold text-base"
+                           onkeypress="if(event.key === 'Enter') pushValue()">
+                    <div class="absolute right-0 top-0 h-full w-2 bg-cyber-blue/20"></div>
+                </div>
+            </div>
+
+            <!-- Standard Operations -->
+            <div class="grid grid-cols-2 gap-3 md:gap-4">
+                <button onclick="pushValue()" class="btn-cyber btn-cyber-blue py-3 md:py-4 font-black text-lg md:text-xl flex flex-col items-center justify-center gap-1 active:scale-95 transition-transform">
+                    <span>push()</span><span class="text-[10px] font-normal opacity-70">add</span>
+                </button>
+                <button onclick="popValue()" class="btn-cyber btn-cyber-pink py-3 md:py-4 font-black text-lg md:text-xl flex flex-col items-center justify-center gap-1 active:scale-95 transition-transform">
+                    <span>pop()</span><span class="text-[10px] font-normal opacity-70">remove</span>
+                </button>
+            </div>
+
+            <!-- Observers -->
+            <div class="space-y-3 pt-4 border-t border-gray-800">
+                <div class="flex flex-col gap-2 md:gap-3">
+                    <button onclick="peekValue()" class="btn-cyber btn-cyber-purple py-2 md:py-3 text-base md:text-lg font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                        top()
+                    </button>
+
+                    <div class="grid grid-cols-2 gap-2 md:gap-3">
+                        <button onclick="checkSize()" class="btn-cyber btn-cyber-gray py-2 md:py-3 text-xs md:text-sm font-bold flex items-center justify-center gap-1 group active:scale-95 transition-transform">
+                            <span>size()</span>
+                            <span id="size-indicator" class="text-cyber-green group-hover:text-white ml-1">0</span>
+                        </button>
+                        <button onclick="checkEmpty()" class="btn-cyber btn-cyber-gray py-2 md:py-3 text-xs md:text-sm font-bold text-cyber-yellow border-cyber-yellow hover:bg-cyber-yellow hover:text-black hover:shadow-neon-yellow active:scale-95 transition-transform">
+                            empty()
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Desktop Log -->
+            <div class="hidden md:block flex-1 min-h-[100px] bg-black/80 border border-gray-700 p-3 text-[10px] overflow-y-auto font-mono shadow-inner relative">
+                <div class="absolute top-0 right-0 px-1 bg-cyber-blue text-black font-bold">STD::OUT</div>
+                <div id="message-box" class="space-y-1 mt-4 text-gray-400">
+                    <div class="text-cyber-green">> #include &lt;stack&gt;</div>
+                    <div class="text-cyber-green">> std::stack&lt;T&gt; s;</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Visual Area -->
+    <main class="flex-1 relative flex flex-col items-center justify-center overflow-hidden perspective-1000 z-10 h-[55%] md:h-full">
+        <div class="absolute top-4 right-4 md:top-10 md:right-10 text-right opacity-40 pointer-events-none select-none">
+            <h2 class="text-5xl md:text-8xl font-black text-white mix-blend-overlay">STACK</h2>
+            <p class="text-sm md:text-2xl text-cyber-blue font-bold">LIFO CONTAINER</p>
+        </div>
+
+        <div id="mobile-log" class="md:hidden absolute top-4 left-4 text-[10px] text-cyber-green/80 font-mono pointer-events-none max-w-[200px] overflow-hidden whitespace-nowrap text-ellipsis">
+            > SYSTEM READY
+        </div>
+
+        <div class="relative w-full max-w-xs md:max-w-md h-[80%] flex flex-col items-center justify-end pb-12 md:pb-24 z-10">
+            <div class="w-64 md:w-72 h-6 md:h-8 border-x-2 border-t-2 border-dashed border-cyber-blue/30 absolute -top-8 md:-top-12 opacity-50"></div>
+            <div id="stack-container" class="w-72 md:w-80 flex flex-col-reverse gap-2 md:gap-3 p-2 md:p-4 min-h-[100px] transition-all duration-300">
+                <div id="empty-placeholder" class="text-center py-10 md:py-20 animate-pulse">
+                    <div class="text-4xl md:text-6xl mb-2 md:mb-4 text-gray-700 font-thin">nullptr</div>
+                    <p class="text-[10px] md:text-xs text-cyber-pink tracking-[0.2em] md:tracking-[0.5em] uppercase border border-cyber-pink/30 px-2 py-1 inline-block">std::stack::empty()</p>
+                </div>
+            </div>
+            <div class="w-80 md:w-96 h-2 bg-cyber-blue shadow-[0_0_20px_#00f3ff] rounded-full mt-2 relative z-20"></div>
+            <div class="w-[300px] md:w-[500px] h-10 md:h-20 bg-cyber-blue/10 blur-[30px] md:blur-[50px] absolute bottom-5 md:bottom-10 -z-10 rounded-full"></div>
+        </div>
+    </main>
+
+    <script>
+        let stack = [];
+        const MAX_CAPACITY = 6;
+        const stackContainer = document.getElementById('stack-container');
+        const inputValue = document.getElementById('input-value');
+        const messageBox = document.getElementById('message-box');
+        const mobileLog = document.getElementById('mobile-log');
+        const emptyPlaceholder = document.getElementById('empty-placeholder');
+        const sizeIndicator = document.getElementById('size-indicator');
+        let audioCtx = null;
+
+        // --- Standard Logic ---
+        function playSound(type) {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'push') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(200, now); osc.frequency.linearRampToValueAtTime(800, now + 0.1);
+                gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now); osc.stop(now + 0.2);
+            } else if (type === 'pop') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(600, now); osc.frequency.exponentialRampToValueAtTime(100, now + 0.3);
+                gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now); osc.stop(now + 0.3);
+            } else if (type === 'bling') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(1500, now);
+                gain.gain.setValueAtTime(0.05, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                osc.start(now); osc.stop(now + 0.1);
+            } else if (type === 'error') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(100, now); osc.frequency.linearRampToValueAtTime(50, now + 0.2);
+                gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.2);
+                osc.start(now); osc.stop(now + 0.2);
+            }
+        }
+
+        function log(msg, type = 'normal') {
+            if (mobileLog) {
+                mobileLog.textContent = "> " + msg.replace(/std::|cerr << |s\./g, '');
+                mobileLog.style.color = type === 'error' ? '#ff00ff' : '#00ff9f';
+                mobileLog.classList.remove('animate-pulse');
+                void mobileLog.offsetWidth; mobileLog.classList.add('animate-pulse');
+            }
+            const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+            let colorClass = 'text-gray-400';
+            if (type === 'success') colorClass = 'text-cyber-blue';
+            if (type === 'error') colorClass = 'text-cyber-pink';
+            if (type === 'warn') colorClass = 'text-cyber-yellow';
+            const line = document.createElement('div');
+            line.innerHTML = `<span class="opacity-50">[${time}]</span> <span class="${colorClass}">${msg}</span>`;
+            messageBox.prepend(line);
+        }
+
+        function getTopElement() {
+            const items = Array.from(stackContainer.children).filter(el => el.id !== 'empty-placeholder');
+            return items[items.length - 1]; 
+        }
+
+        function removeOldTopMarkers() {
+            const items = stackContainer.querySelectorAll('.stack-item');
+            items.forEach(el => {
+                el.classList.remove('top-item');
+                const badge = el.querySelector('.top-badge');
+                if(badge) badge.remove();
+            });
+        }
+
+        function addTopMarker(element) {
+            if (!element) return;
+            element.classList.add('top-item');
+            const marker = document.createElement('div');
+            marker.className = 'top-badge absolute -right-16 md:-right-24 top-1/2 -translate-y-1/2 text-[8px] md:text-[10px] text-cyber-pink border border-cyber-pink px-1 md:px-2 py-0.5 md:py-1 font-bold tracking-widest animate-pulse';
+            marker.innerHTML = '< *ptr';
+            element.appendChild(marker);
+        }
+
+        function pushValue() {
+            const val = inputValue.value.trim();
+            if (!val) { log("std::cerr << \"Error: NULL INPUT\";", "error"); playSound('error'); return; }
+            if (stack.length >= MAX_CAPACITY) { log("std::cerr << \"Error: OVERFLOW\";", "error"); playSound('error'); return; }
+
+            stack.push(val);
+            sizeIndicator.textContent = stack.length;
+            emptyPlaceholder.style.display = 'none';
+            removeOldTopMarkers();
+
+            const el = document.createElement('div');
+            el.className = `w-full h-12 md:h-16 flex items-center justify-center text-lg md:text-xl font-bold stack-item relative select-none fly-in`;
+            el.innerHTML = `<span class="z-10">${val}</span>`;
+            
+            const grid = document.createElement('div');
+            grid.className = 'absolute inset-0 opacity-20 bg-[linear-gradient(45deg,transparent_25%,#00f3ff_25%,#00f3ff_50%,transparent_50%,transparent_75%,#00f3ff_75%,#00f3ff_100%)] bg-[size:10px_10px]';
+            el.appendChild(grid);
+
+            stackContainer.appendChild(el);
+            addTopMarker(el);
+
+            log(`s.push("${val}");`, "success");
+            playSound('push');
+            inputValue.value = "";
+            inputValue.focus();
+        }
+
+        function popValue() {
+            if (stack.length === 0) { log("std::cerr << \"Error: UNDERFLOW\";", "error"); playSound('error'); return; }
+            const val = stack[stack.length - 1];
+            const topItem = getTopElement();
+            playSound('pop');
+
+            if (topItem) {
+                topItem.classList.remove('fly-in', 'stack-item', 'top-item');
+                topItem.classList.add('pop-animation');
+                topItem.style.border = "2px solid #ff00ff";
+                topItem.style.color = "#ff00ff";
+                topItem.style.background = "rgba(255,0,255,0.2)";
+                const badge = topItem.querySelector('.top-badge');
+                if(badge) badge.remove();
+
+                setTimeout(() => {
+                    topItem.remove();
+                    stack.pop();
+                    sizeIndicator.textContent = stack.length;
+                    log(`s.pop(); // "${val}"`, "warn");
+
+                    if (stack.length === 0) {
+                        emptyPlaceholder.style.display = 'block';
+                    } else {
+                        addTopMarker(getTopElement());
+                    }
+                }, 550);
+            }
+        }
+
+        function createExplosion(text, color, isGlitch = false) {
+            const overlay = document.createElement('div');
+            overlay.id = 'explosion-overlay';
+            const content = document.createElement('div');
+            content.className = `text-center z-50 p-6 md:p-10 border-4 border-${color === '#00ff9f' ? 'cyber-green' : 'cyber-pink'} bg-black/80 backdrop-blur-sm`;
+            if (color === '#00ff9f') content.style.borderColor = '#00ff9f'; else content.style.borderColor = '#ff00ff';
+
+            const title = document.createElement('div');
+            title.textContent = text;
+            title.className = `text-5xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-${color === '#00ff9f' ? 'cyber-green' : 'cyber-pink'} tracking-tighter`;
+            if (isGlitch) title.classList.add('glitch-text'); else title.style.textShadow = `0 0 20px ${color}`;
+            title.style.backgroundImage = `linear-gradient(to bottom, #ffffff, ${color})`;
+            
+            const sub = document.createElement('div');
+            sub.textContent = "RETURN VALUE";
+            sub.className = "text-[10px] md:text-xs tracking-[1em] mt-4 text-white opacity-70";
+
+            content.appendChild(title); content.appendChild(sub); overlay.appendChild(content); document.body.appendChild(overlay);
+
+            const centerX = window.innerWidth / 2;
+            const centerY = window.innerHeight / 2;
+            for(let i=0; i<20; i++) {
+                const p = document.createElement('div');
+                p.className = 'explosion-particle';
+                const size = Math.random() * 3 + 2;
+                p.style.width = p.style.height = `${size}px`;
+                p.style.background = color;
+                p.style.left = centerX + 'px';
+                p.style.top = centerY + 'px';
+                document.body.appendChild(p);
+                
+                const angle = Math.random() * Math.PI * 2;
+                const vel = Math.random() * 150 + 50;
+                p.animate([
+                    { transform: 'translate(0,0) scale(1)', opacity: 1 },
+                    { transform: `translate(${Math.cos(angle)*vel}px, ${Math.sin(angle)*vel}px) scale(0)`, opacity: 0 }
+                ], { duration: 800 }).onfinish = () => p.remove();
+            }
+            setTimeout(() => { overlay.style.transition = 'opacity 0.2s'; overlay.style.opacity = 0; setTimeout(() => overlay.remove(), 200); }, 1200);
+        }
+
+        function peekValue() {
+            if (stack.length === 0) { log("s.empty() == true", "error"); playSound('error'); return; }
+            const val = stack[stack.length - 1];
+            log(`s.top() -> "${val}"`, "success");
+            playSound('bling');
+            createExplosion(val, '#bc13fe');
+        }
+
+        function checkSize() {
+            log(`s.size() -> ${stack.length}`, "success");
+            playSound('bling');
+            createExplosion(stack.length.toString(), '#00f3ff');
+        }
+
+        function checkEmpty() {
+            playSound('bling');
+            const isEmpty = stack.length === 0;
+            const boolStr = isEmpty ? "TRUE" : "FALSE";
+            log(`s.empty() -> ${boolStr}`, isEmpty ? "warn" : "success");
+            if (isEmpty) { createExplosion("TRUE", '#ff00ff', true); } else { createExplosion("FALSE", '#00ff9f', true); }
+        }
+
+        function initMouseTrail() {
+            const canvas = document.getElementById('trail-canvas');
+            const ctx = canvas.getContext('2d');
+            let w, h, particles = [];
+            const resize = () => { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; };
+            window.addEventListener('resize', resize);
+            resize();
+
+            const addParticle = (x, y) => {
+                for(let i=0; i<2; i++) particles.push({
+                    x: x, y: y,
+                    vx: (Math.random()-0.5)*2, vy: (Math.random()-0.5)*2,
+                    life: 1, color: Math.random()>0.5 ? '#00f3ff' : '#bc13fe'
+                });
+            };
+            window.addEventListener('mousemove', e => addParticle(e.clientX, e.clientY));
+            window.addEventListener('touchmove', e => {
+                const touch = e.touches[0];
+                addParticle(touch.clientX, touch.clientY);
+            });
+
+            function loop() {
+                ctx.clearRect(0,0,w,h);
+                particles.forEach((p, i) => {
+                    p.x += p.vx; p.y += p.vy; p.life -= 0.04;
+                    ctx.fillStyle = p.color;
+                    ctx.globalAlpha = p.life;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, Math.PI*2); ctx.fill();
+                    if(p.life<=0) particles.splice(i,1);
+                });
+                requestAnimationFrame(loop);
+            }
+            loop();
+        }
+
+        window.onload = function() {
+            initMouseTrail();
+            tsParticles.load({
+                id: "tsparticles",
+                options: {
+                    background: { color: { value: "transparent" } },
+                    particles: {
+                        color: { value: "#00f3ff" },
+                        links: { color: "#bc13fe", distance: 150, enable: true, opacity: 0.2, width: 1 },
+                        move: { enable: true, speed: 1 },
+                        number: { value: 30 },
+                        opacity: { value: 0.5 },
+                        size: { value: 2 }
+                    }
+                }
+            });
+            stackContainer.innerHTML = '';
+            stackContainer.appendChild(emptyPlaceholder);
+        };
+    </script>
+</body>
+</html>

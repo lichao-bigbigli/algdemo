@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>赛博朋克井字棋 | TIC TAC TOE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tsparticles/engine@2/tsparticles.engine.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tsparticles/preset-links@2/tsparticles.preset.links.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Courier New', 'Courier', 'monospace', 'system-ui'] },
+                    colors: {
+                        cyber: {
+                            black: '#020205',
+                            dark: '#0a0a12',
+                            blue: '#00f3ff', // 电光蓝 (X玩家)
+                            pink: '#ff00ff', // 霓虹粉 (O玩家)
+                            purple: '#bc13fe', // 激光紫
+                            yellow: '#ffee00', // 警示黄
+                            green: '#00ff9f', // 荧光绿 (胜利)
+                        }
+                    },
+                    boxShadow: {
+                        'neon-blue': '0 0 5px #00f3ff, 0 0 10px #00f3ff',
+                        'neon-pink': '0 0 5px #ff00ff, 0 0 10px #ff00ff',
+                        'neon-green': '0 0 5px #00ff9f, 0 0 10px #00ff9f',
+                        'neon-yellow': '0 0 5px #ffee00, 0 0 10px #ffee00',
+                    },
+                    animation: {
+                        'glitch': 'glitch 1s linear infinite',
+                        'pulse-fast': 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'spin-slow': 'spin 20s linear infinite',
+                        'spin-reverse-slow': 'spinReverse 25s linear infinite',
+                        'win-pulse': 'winPulse 2s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        glitch: {
+                            '2%, 64%': { transform: 'translate(2px,0) skew(0deg)' },
+                            '4%, 60%': { transform: 'translate(-2px,0) skew(0deg)' },
+                            '62%': { transform: 'translate(0,0) skew(5deg)' },
+                        },
+                        spinReverse: {
+                            '0%': { transform: 'rotate(360deg)' },
+                            '100%': { transform: 'rotate(0deg)' },
+                        },
+                        winPulse: {
+                            '0%, 100%': { filter: 'brightness(1) drop-shadow(0 0 10px currentColor)' },
+                            '50%': { filter: 'brightness(1.5) drop-shadow(0 0 20px currentColor)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #020205;
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+
+        #tsparticles {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+        }
+
+        #trail-canvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999;
+        }
+
+        /* 赛博风格面板 */
+        .panel-cyber {
+            background: rgba(10, 10, 18, 0.85);
+            backdrop-filter: blur(10px);
+            border: 2px solid #00f3ff;
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.1);
+        }
+
+        /* 赛博按钮 */
+        .btn-cyber {
+            position: relative;
+            background: transparent;
+            border: 2px solid;
+            letter-spacing: 1px;
+            transition: all 0.3s;
+            overflow: hidden;
+            z-index: 1;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .btn-cyber-blue {
+            border-color: #00f3ff;
+            color: #00f3ff;
+            text-shadow: 0 0 8px rgba(0, 243, 255, 0.8);
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
+        }
+        .btn-cyber-blue:hover {
+            background: #00f3ff;
+            color: #000;
+            box-shadow: 0 0 20px #00f3ff, 0 0 40px #00f3ff;
+        }
+
+        .btn-cyber-pink {
+            border-color: #ff00ff;
+            color: #ff00ff;
+            text-shadow: 0 0 8px rgba(255, 0, 255, 0.8);
+            box-shadow: 0 0 10px rgba(255, 0, 255, 0.2);
+        }
+        .btn-cyber-pink:hover {
+            background: #ff00ff;
+            color: #000;
+            box-shadow: 0 0 20px #ff00ff, 0 0 40px #ff00ff;
+        }
+
+        .btn-cyber-green {
+            border-color: #00ff9f;
+            color: #00ff9f;
+            box-shadow: 0 0 5px rgba(0, 255, 159, 0.3);
+        }
+        .btn-cyber-green:hover {
+            background: #00ff9f;
+            color: #000;
+            box-shadow: 0 0 15px #00ff9f, 0 0 30px #00ff9f;
+        }
+
+        /* 井字棋棋盘 */
+        .board-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 4px;
+            background: linear-gradient(45deg, #00f3ff, #ff00ff);
+            padding: 4px;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.3), 0 0 40px rgba(255, 0, 255, 0.2);
+        }
+
+        .cell {
+            width: 120px;
+            height: 120px;
+            background: rgba(2, 2, 5, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cell:hover {
+            background: rgba(10, 10, 18, 0.95);
+            box-shadow: inset 0 0 10px rgba(0, 243, 255, 0.2);
+        }
+
+        .cell.x::after {
+            content: 'X';
+            font-size: 6rem;
+            font-weight: 900;
+            color: #00f3ff;
+            text-shadow: 0 0 10px #00f3ff, 0 0 20px #00f3ff;
+            animation: win-pulse 2s infinite;
+        }
+
+        .cell.o::after {
+            content: 'O';
+            font-size: 6rem;
+            font-weight: 900;
+            color: #ff00ff;
+            text-shadow: 0 0 10px #ff00ff, 0 0 20px #ff00ff;
+            animation: win-pulse 2s infinite;
+        }
+
+        .cell.win {
+            background: rgba(0, 255, 159, 0.1);
+            border: 2px solid #00ff9f;
+            box-shadow: 0 0 15px rgba(0, 255, 159, 0.4);
+        }
+
+        .cell.win.x::after, .cell.win.o::after {
+            color: #00ff9f;
+            text-shadow: 0 0 15px #00ff9f, 0 0 30px #00ff9f;
+        }
+
+        /* 故障文字特效 */
+        .glitch-text {
+            position: relative;
+            color: #fff;
+            font-weight: 900;
+            text-shadow: 2px 2px #ff00ff, -2px -2px #00f3ff;
+            animation: glitch 1s infinite;
+        }
+        
+        /* 胜利弹窗 */
+        #win-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+
+        #win-overlay.active {
+            display: flex;
+            pointer-events: all;
+        }
+
+        .win-content {
+            text-align: center;
+            padding: 4rem;
+            border: 4px solid #00ff9f;
+            background: rgba(2, 2, 5, 0.95);
+            box-shadow: 0 0 30px #00ff9f, 0 0 60px rgba(0, 255, 159, 0.3);
+            border-radius: 8px;
+        }
+
+        /* 酷炫背景几何动画 */
+        .geo-circle {
+            position: absolute;
+            border-radius: 50%;
+            border: 1px dashed rgba(0, 243, 255, 0.15);
+            pointer-events: none;
+            z-index: 0;
+        }
+        .geo-square {
+            position: absolute;
+            border: 1px solid rgba(188, 19, 254, 0.1);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* 滚动条 */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #0a0a12; }
+        ::-webkit-scrollbar-thumb { background: #00f3ff; border-radius: 2px; }
+
+        /* 玩家状态指示器 */
+        .player-indicator {
+            width: 2rem;
+            height: 2rem;
+            border-radius: 50%;
+            box-shadow: 0 0 10px currentColor;
+        }
+
+        .indicator-x {
+            background: #00f3ff;
+            color: #00f3ff;
+        }
+
+        .indicator-o {
+            background: #ff00ff;
+            color: #ff00ff;
+        }
+
+        .indicator-active {
+            animation: pulse-fast 1.5s infinite;
+            box-shadow: 0 0 15px currentColor, 0 0 30px currentColor;
+        }
+
+        /* 日志区 */
+        .log-container {
+            background: rgba(0,0,0,0.8);
+            border: 1px solid #444;
+            height: 120px;
+            overflow-y: auto;
+            font-size: 0.75rem;
+        }
+    </style>
+</head>
+<body class="flex flex-col md:flex-row h-screen w-screen font-mono">
+    <div id="tsparticles"></div>
+    <canvas id="trail-canvas"></canvas>
+
+    <!-- 酷炫背景几何动画层 -->
+    <div class="fixed inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
+        <div class="geo-circle w-[600px] h-[600px] animate-spin-slow border-t-transparent border-l-transparent"></div>
+        <div class="geo-circle w-[450px] h-[450px] animate-spin-reverse-slow border-b-transparent border-r-transparent" style="border-color: rgba(255, 0, 255, 0.15);"></div>
+        <div class="geo-square w-[300px] h-[300px] animate-spin-slow" style="transform: rotate(45deg);"></div>
+        <div class="absolute inset-0 bg-[linear-gradient(rgba(0,243,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,243,255,0.03)_1px,transparent_1px)] bg-[size:50px_50px] [transform:perspective(500px)_rotateX(60deg)_scale(3)] origin-top opacity-50"></div>
+    </div>
+
+    <!-- 左侧控制面板 -->
+    <aside class="w-full md:w-96 panel-cyber flex flex-col h-full z-20 flex-shrink-0">
+        <!-- 标题区 -->
+        <div class="p-6 border-b border-cyber-blue/30 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-cyber-blue/20 to-transparent"></div>
+            <h1 class="text-3xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyber-blue to-cyber-pink drop-shadow-[0_0_10px_rgba(0,243,255,0.5)]">
+                TIC TAC TOE
+            </h1>
+            <p class="text-[10px] text-cyber-blue/70 mt-1 tracking-[0.3em]">CYBERPUNK EDITION</p>
+        </div>
+
+        <!-- 内容区 -->
+        <div class="flex-1 overflow-y-auto p-6 space-y-6">
+            <!-- 玩家状态 -->
+            <div class="flex items-center justify-between p-4 border border-gray-700 rounded-lg bg-cyber-dark/50">
+                <div class="flex items-center gap-3">
+                    <div class="player-indicator indicator-x" id="indicator-x"></div>
+                    <div>
+                        <h3 class="text-cyber-blue font-bold">PLAYER X</h3>
+                        <p class="text-xs text-gray-400">电光蓝阵营</p>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-3">
+                    <div class="player-indicator indicator-o" id="indicator-o"></div>
+                    <div>
+                        <h3 class="text-cyber-pink font-bold">PLAYER O</h3>
+                        <p class="text-xs text-gray-400">霓虹粉阵营</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 游戏状态 -->
+            <div class="p-4 border border-cyber-yellow/30 rounded-lg bg-cyber-dark/50">
+                <h3 class="text-cyber-yellow text-sm font-bold uppercase tracking-widest mb-2">GAME STATUS</h3>
+                <div id="game-status" class="text-xl font-bold glitch-text">
+                    X 玩家回合
+                </div>
+                <div class="mt-2 flex items-center gap-2">
+                    <span class="text-xs text-gray-400">当前回合:</span>
+                    <div id="current-turn" class="player-indicator indicator-x indicator-active"></div>
+                </div>
+            </div>
+
+            <!-- 控制按钮 -->
+            <div class="grid grid-cols-2 gap-4">
+                <button id="reset-btn" class="btn-cyber btn-cyber-blue py-3 font-bold">
+                    RESET GAME
+                </button>
+                <button id="clear-log-btn" class="btn-cyber btn-cyber-pink py-3 font-bold">
+                    CLEAR LOG
+                </button>
+            </div>
+
+            <!-- 计分板 -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="p-4 border border-cyber-blue/50 rounded-lg bg-cyber-dark/50 text-center">
+                    <h3 class="text-cyber-blue text-sm uppercase tracking-widest">X 胜利次数</h3>
+                    <p id="score-x" class="text-3xl font-bold mt-2">0</p>
+                </div>
+                <div class="p-4 border border-cyber-pink/50 rounded-lg bg-cyber-dark/50 text-center">
+                    <h3 class="text-cyber-pink text-sm uppercase tracking-widest">O 胜利次数</h3>
+                    <p id="score-o" class="text-3xl font-bold mt-2">0</p>
+                </div>
+            </div>
+
+            <!-- 日志区 -->
+            <div>
+                <h3 class="text-cyber-green text-sm font-bold uppercase tracking-widest mb-2">>> GAME LOG</h3>
+                <div class="log-container p-3 space-y-1" id="game-log">
+                    <div class="text-cyber-green">> 游戏初始化完成</div>
+                    <div class="text-cyber-green">> 等待玩家落子...</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 右侧游戏区域 -->
+    <main class="flex-1 flex flex-col items-center justify-center p-6 z-10 relative">
+        <!-- 顶部装饰文字 -->
+        <div class="absolute top-10 right-10 text-right opacity-40 pointer-events-none select-none">
+            <h2 class="text-8xl font-black text-white mix-blend-overlay">TIC</h2>
+            <h2 class="text-8xl font-black text-white mix-blend-overlay mt-2">TAC</h2>
+            <h2 class="text-8xl font-black text-white mix-blend-overlay mt-2">TOE</h2>
+            <p class="text-2xl text-cyber-blue font-bold mt-2">CYBER BATTLE</p>
+        </div>
+
+        <!-- 井字棋棋盘 -->
+        <div class="board-grid mb-8" id="game-board">
+            <!-- 9个格子会通过JS动态生成 -->
+        </div>
+
+        <!-- 游戏控制按钮 -->
+        <div class="flex gap-4">
+            <button id="new-game-btn" class="btn-cyber btn-cyber-green py-3 px-8 font-bold text-lg">
+                NEW GAME
+            </button>
+            <button id="undo-btn" class="btn-cyber btn-cyber-purple py-3 px-8 font-bold text-lg opacity-50" disabled>
+                UNDO
+            </button>
+        </div>
+
+        <!-- 胜利弹窗 -->
+        <div id="win-overlay">
+            <div class="win-content">
+                <h2 id="win-message" class="text-5xl font-black text-cyber-green mb-6 glitch-text">
+                    X PLAYER WINS!
+                </h2>
+                <p class="text-cyber-yellow mb-8">CONGRATULATIONS - 连接成功</p>
+                <button id="play-again-btn" class="btn-cyber btn-cyber-green py-3 px-8 font-bold text-lg">
+                    PLAY AGAIN
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // --- 游戏核心逻辑 ---
+        let gameBoard = ['', '', '', '', '', '', '', '', ''];
+        let currentPlayer = 'X';
+        let gameActive = true;
+        let scoreX = 0;
+        let scoreO = 0;
+        let moveHistory = [];
+        
+        // 胜利组合
+        const winningCombos = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8], // 横向
+            [0, 3, 6], [1, 4, 7], [2, 5, 8], // 纵向
+            [0, 4, 8], [2, 4, 6]             // 对角线
+        ];
+
+        // DOM 元素
+        const gameBoardEl = document.getElementById('game-board');
+        const gameStatusEl = document.getElementById('game-status');
+        const currentTurnEl = document.getElementById('current-turn');
+        const indicatorXEl = document.getElementById('indicator-x');
+        const indicatorOEl = document.getElementById('indicator-o');
+        const winOverlayEl = document.getElementById('win-overlay');
+        const winMessageEl = document.getElementById('win-message');
+        const scoreXEl = document.getElementById('score-x');
+        const scoreOEl = document.getElementById('score-o');
+        const gameLogEl = document.getElementById('game-log');
+        const resetBtnEl = document.getElementById('reset-btn');
+        const newGameBtnEl = document.getElementById('new-game-btn');
+        const playAgainBtnEl = document.getElementById('play-again-btn');
+        const undoBtnEl = document.getElementById('undo-btn');
+        let audioCtx = null;
+
+        // --- 初始化棋盘 ---
+        function initBoard() {
+            gameBoardEl.innerHTML = '';
+            gameBoard.forEach((cell, index) => {
+                const cellEl = document.createElement('div');
+                cellEl.className = `cell ${cell.toLowerCase()}`;
+                cellEl.dataset.index = index;
+                cellEl.addEventListener('click', handleCellClick);
+                gameBoardEl.appendChild(cellEl);
+            });
+            updatePlayerIndicator();
+            log('棋盘初始化完成', 'system');
+        }
+
+        // --- 处理单元格点击 ---
+        function handleCellClick(e) {
+            const index = parseInt(e.target.dataset.index);
+            
+            // 检查单元格是否已被占用或游戏是否结束
+            if (gameBoard[index] !== '' || !gameActive) return;
+            
+            // 记录移动历史
+            moveHistory.push({ index, player: currentPlayer });
+            undoBtnEl.disabled = false;
+            undoBtnEl.classList.remove('opacity-50');
+            
+            // 更新棋盘状态
+            gameBoard[index] = currentPlayer;
+            e.target.classList.add(currentPlayer.toLowerCase());
+            
+            // 播放落子音效
+            playSound(currentPlayer === 'X' ? 'x-place' : 'o-place');
+            
+            // 记录日志
+            log(`玩家 ${currentPlayer} 在位置 ${index} 落子`, currentPlayer);
+            
+            // 检查游戏结果
+            if (checkWin()) {
+                gameActive = false;
+                const winner = currentPlayer;
+                log(`玩家 ${winner} 获胜!`, 'win');
+                
+                // 更新计分板
+                if (winner === 'X') scoreX++;
+                else scoreO++;
+                updateScoreboard();
+                
+                // 显示胜利弹窗
+                showWinMessage(winner);
+                
+                // 高亮胜利组合
+                highlightWinningCombo();
+                
+                // 播放胜利音效
+                playSound('win');
+                return;
+            }
+            
+            // 检查平局
+            if (checkDraw()) {
+                gameActive = false;
+                log('游戏平局!', 'draw');
+                gameStatusEl.textContent = '游戏平局 - NO WINNER';
+                gameStatusEl.className = 'text-xl font-bold text-cyber-yellow glitch-text';
+                playSound('draw');
+                return;
+            }
+            
+            // 切换玩家
+            currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+            updateGameStatus();
+            updatePlayerIndicator();
+        }
+
+        // --- 检查胜利 ---
+        function checkWin() {
+            return winningCombos.some(combo => {
+                return combo.every(index => gameBoard[index] === currentPlayer);
+            });
+        }
+
+        // --- 检查平局 ---
+        function checkDraw() {
+            return gameBoard.every(cell => cell !== '');
+        }
+
+        // --- 高亮胜利组合 ---
+        function highlightWinningCombo() {
+            const winningCombo = winningCombos.find(combo => {
+                return combo.every(index => gameBoard[index] === currentPlayer);
+            });
+            
+            if (winningCombo) {
+                winningCombo.forEach(index => {
+                    const cell = document.querySelector(`.cell[data-index="${index}"]`);
+                    cell.classList.add('win');
+                });
+            }
+        }
+
+        // --- 更新游戏状态 ---
+        function updateGameStatus() {
+            gameStatusEl.textContent = `${currentPlayer} 玩家回合`;
+            gameStatusEl.className = `text-xl font-bold ${currentPlayer === 'X' ? 'text-cyber-blue' : 'text-cyber-pink'} glitch-text`;
+        }
+
+        // --- 更新玩家指示器 ---
+        function updatePlayerIndicator() {
+            if (currentPlayer === 'X') {
+                indicatorXEl.classList.add('indicator-active');
+                indicatorOEl.classList.remove('indicator-active');
+                currentTurnEl.className = 'player-indicator indicator-x indicator-active';
+            } else {
+                indicatorOEl.classList.add('indicator-active');
+                indicatorXEl.classList.remove('indicator-active');
+                currentTurnEl.className = 'player-indicator indicator-o indicator-active';
+            }
+        }
+
+        // --- 显示胜利消息 ---
+        function showWinMessage(winner) {
+            winMessageEl.textContent = `${winner} PLAYER WINS!`;
+            winMessageEl.style.color = winner === 'X' ? '#00f3ff' : '#ff00ff';
+            winMessageEl.style.textShadow = winner === 'X' ? '0 0 20px #00f3ff' : '0 0 20px #ff00ff';
+            winOverlayEl.classList.add('active');
+        }
+
+        // --- 更新计分板 ---
+        function updateScoreboard() {
+            scoreXEl.textContent = scoreX;
+            scoreOEl.textContent = scoreO;
+        }
+
+        // --- 重置游戏 ---
+        function resetGame() {
+            gameBoard = ['', '', '', '', '', '', '', '', ''];
+            gameActive = true;
+            currentPlayer = 'X';
+            moveHistory = [];
+            undoBtnEl.disabled = true;
+            undoBtnEl.classList.add('opacity-50');
+            
+            initBoard();
+            updateGameStatus();
+            updatePlayerIndicator();
+            winOverlayEl.classList.remove('active');
+            
+            log('游戏已重置', 'system');
+            playSound('reset');
+        }
+
+        // --- 撤销上一步 ---
+        function undoMove() {
+            if (moveHistory.length === 0) return;
+            
+            const lastMove = moveHistory.pop();
+            gameBoard[lastMove.index] = '';
+            
+            const cell = document.querySelector(`.cell[data-index="${lastMove.index}"]`);
+            cell.classList.remove(lastMove.player.toLowerCase());
+            cell.classList.remove('win');
+            
+            currentPlayer = lastMove.player;
+            gameActive = true;
+            
+            updateGameStatus();
+            updatePlayerIndicator();
+            
+            if (moveHistory.length === 0) {
+                undoBtnEl.disabled = true;
+                undoBtnEl.classList.add('opacity-50');
+            }
+            
+            log(`撤销玩家 ${lastMove.player} 在位置 ${lastMove.index} 的落子`, 'undo');
+            playSound('undo');
+        }
+
+        // --- 日志系统 ---
+        function log(message, type = 'normal') {
+            const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+            let colorClass = 'text-gray-400';
+            
+            if (type === 'X') colorClass = 'text-cyber-blue';
+            if (type === 'O') colorClass = 'text-cyber-pink';
+            if (type === 'win') colorClass = 'text-cyber-green';
+            if (type === 'draw') colorClass = 'text-cyber-yellow';
+            if (type === 'system') colorClass = 'text-cyber-purple';
+            if (type === 'undo') colorClass = 'text-cyber-yellow';
+            
+            const logLine = document.createElement('div');
+            logLine.innerHTML = `<span class="opacity-50">[${time}]</span> <span class="${colorClass}">${message}</span>`;
+            gameLogEl.prepend(logLine);
+        }
+
+        // --- 音效系统 ---
+        function playSound(type) {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const now = audioCtx.currentTime;
+            
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'x-place') {
+                // X落子音效 (电光蓝)
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, now);
+                osc.frequency.linearRampToValueAtTime(1320, now + 0.1);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now); osc.stop(now + 0.2);
+            } else if (type === 'o-place') {
+                // O落子音效 (霓虹粉)
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(523, now);
+                osc.frequency.linearRampToValueAtTime(784, now + 0.1);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now); osc.stop(now + 0.2);
+            } else if (type === 'win') {
+                // 胜利音效
+                const osc1 = audioCtx.createOscillator();
+                const osc2 = audioCtx.createOscillator();
+                const gain1 = audioCtx.createGain();
+                const gain2 = audioCtx.createGain();
+                
+                osc1.connect(gain1);
+                osc2.connect(gain2);
+                gain1.connect(audioCtx.destination);
+                gain2.connect(audioCtx.destination);
+                
+                osc1.type = 'sine';
+                osc1.frequency.setValueAtTime(660, now);
+                osc1.frequency.linearRampToValueAtTime(880, now + 0.3);
+                gain1.gain.setValueAtTime(0.1, now);
+                gain1.gain.linearRampToValueAtTime(0, now + 1);
+                
+                osc2.type = 'sine';
+                osc2.frequency.setValueAtTime(880, now + 0.1);
+                osc2.frequency.linearRampToValueAtTime(1320, now + 0.4);
+                gain2.gain.setValueAtTime(0.1, now + 0.1);
+                gain2.gain.linearRampToValueAtTime(0, now + 1.1);
+                
+                osc1.start(now); osc1.stop(now + 1);
+                osc2.start(now + 0.1); osc2.stop(now + 1.1);
+            } else if (type === 'draw') {
+                // 平局音效
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(330, now);
+                osc.frequency.linearRampToValueAtTime(220, now + 0.3);
+                gain.gain.setValueAtTime(0.08, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.5);
+                osc.start(now); osc.stop(now + 0.5);
+            } else if (type === 'reset') {
+                // 重置音效
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.linearRampToValueAtTime(220, now + 0.4);
+                gain.gain.setValueAtTime(0.08, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.5);
+                osc.start(now); osc.stop(now + 0.5);
+            } else if (type === 'undo') {
+                // 撤销音效
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(220, now);
+                osc.frequency.linearRampToValueAtTime(110, now + 0.2);
+                gain.gain.setValueAtTime(0.08, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.3);
+                osc.start(now); osc.stop(now + 0.3);
+            }
+        }
+
+        // --- 鼠标拖尾效果 ---
+        function initMouseTrail() {
+            const canvas = document.getElementById('trail-canvas');
+            const ctx = canvas.getContext('2d');
+            let w, h, particles = [];
+            const resize = () => { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; };
+            window.addEventListener('resize', resize);
+            resize();
+
+            window.addEventListener('mousemove', e => {
+                for(let i=0; i<2; i++) particles.push({
+                    x: e.clientX, y: e.clientY,
+                    vx: (Math.random()-0.5)*2, vy: (Math.random()-0.5)*2,
+                    life: 1, color: Math.random()>0.5 ? '#00f3ff' : '#ff00ff'
+                });
+            });
+
+            function loop() {
+                ctx.clearRect(0,0,w,h);
+                particles.forEach((p, i) => {
+                    p.x += p.vx; p.y += p.vy; p.life -= 0.04;
+                    ctx.fillStyle = p.color;
+                    ctx.globalAlpha = p.life;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, Math.PI*2); ctx.fill();
+                    if(p.life<=0) particles.splice(i,1);
+                });
+                requestAnimationFrame(loop);
+            }
+            loop();
+        }
+
+        // --- 清空日志 ---
+        function clearLog() {
+            gameLogEl.innerHTML = '';
+            log('日志已清空', 'system');
+        }
+
+        // --- 事件监听 ---
+        resetBtnEl.addEventListener('click', resetGame);
+        newGameBtnEl.addEventListener('click', resetGame);
+        playAgainBtnEl.addEventListener('click', resetGame);
+        undoBtnEl.addEventListener('click', undoMove);
+        document.getElementById('clear-log-btn').addEventListener('click', clearLog);
+
+        // --- 初始化 ---
+        window.onload = function() {
+            // 初始化粒子背景
+            tsParticles.load({
+                id: "tsparticles",
+                options: {
+                    background: { color: { value: "transparent" } },
+                    particles: {
+                        color: { value: ["#00f3ff", "#ff00ff"] },
+                        links: { color: "#bc13fe", distance: 150, enable: true, opacity: 0.2, width: 1 },
+                        move: { enable: true, speed: 1 },
+                        number: { value: 40 },
+                        opacity: { value: 0.5 },
+                        size: { value: 2 }
+                    }
+                }
+            });
+            
+            initMouseTrail();
+            initBoard();
+            updateGameStatus();
+            updateScoreboard();
+        };
+    </script>
+</body>
+</html>

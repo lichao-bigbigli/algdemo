@@ -1,0 +1,1207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GESP C++ 一至八级大纲</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=Space+Mono:wght@400;700&display=swap');
+
+:root {
+  --bg: #0a0e1a;
+  --card-bg: rgba(255,255,255,0.04);
+  --c1: #4fc3f7;
+  --c2: #81c784;
+  --c3: #ff8a65;
+  --c4: #ce93d8;
+  --c5: #f06292;
+  --c6: #4db6ac;
+  --c7: #ffb74d;
+  --c8: #a5d6a7;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  font-family: 'Noto Sans SC', sans-serif;
+  min-height: 100vh;
+  color: #fff;
+  overflow-x: hidden;
+}
+
+/* ══════════════ HEADER ══════════════ */
+header {
+  text-align: center;
+  padding: 32px 20px 16px;
+}
+header .badge {
+  display: inline-block;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: #f0c040;
+  border: 1px solid #f0c040;
+  padding: 4px 14px;
+  border-radius: 20px;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+header h1 {
+  font-size: clamp(20px, 4vw, 34px);
+  font-weight: 900;
+  background: linear-gradient(135deg, #f0c040, #ff8a65);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+header p {
+  color: rgba(255,255,255,0.4);
+  font-size: 12px;
+  margin-top: 5px;
+  letter-spacing: 1px;
+}
+
+/* ══════════════ TAB NAV ══════════════ */
+.tab-nav {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 20px 20px 0;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.tab-btn {
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 20px;
+  border-radius: 30px;
+  border: 1.5px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.5);
+  cursor: pointer;
+  transition: all .2s;
+  position: relative;
+  overflow: hidden;
+}
+.tab-btn:hover {
+  color: #fff;
+  border-color: rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.08);
+}
+.tab-btn.active {
+  color: #0a0e1a;
+  font-weight: 900;
+  border-color: transparent;
+}
+
+/* Level colors for tab buttons */
+.tab-btn[data-lv="1"].active  { background: #f0c040; }
+.tab-btn[data-lv="2"].active  { background: #4fc3f7; }
+.tab-btn[data-lv="3"].active  { background: #81c784; }
+.tab-btn[data-lv="4"].active  { background: #ff8a65; }
+.tab-btn[data-lv="5"].active  { background: #ce93d8; }
+.tab-btn[data-lv="6"].active  { background: #f06292; }
+.tab-btn[data-lv="7"].active  { background: #4db6ac; }
+.tab-btn[data-lv="8"].active  { background: #ffb74d; }
+
+/* ══════════════ TAB PANELS ══════════════ */
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ══════════════ MAP WRAPPER ══════════════ */
+.map-wrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 28px 24px 50px;
+}
+
+/* ── center node ── */
+.center-node {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  margin: 0 auto 40px;
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  font-size: 17px;
+  font-weight: 900;
+  color: #0a0e1a;
+  text-align: center;
+  line-height: 1.3;
+  animation: pulse 3s ease-in-out infinite;
+}
+.center-node span {
+  font-size: 11px;
+  font-weight: 500;
+  margin-top: 3px;
+  opacity: .7;
+}
+
+.lv1 .center-node { background: radial-gradient(circle at 35% 35%,#ffe082,#f0a000); box-shadow:0 0 0 8px rgba(240,192,64,.15),0 0 60px rgba(240,192,64,.35); }
+.lv2 .center-node { background: radial-gradient(circle at 35% 35%,#b3e5fc,#0288d1); box-shadow:0 0 0 8px rgba(79,195,247,.15),0 0 60px rgba(79,195,247,.35); }
+.lv3 .center-node { background: radial-gradient(circle at 35% 35%,#c8e6c9,#388e3c); box-shadow:0 0 0 8px rgba(129,199,132,.15),0 0 60px rgba(129,199,132,.35); }
+.lv4 .center-node { background: radial-gradient(circle at 35% 35%,#ffe0b2,#e64a19); box-shadow:0 0 0 8px rgba(255,138,101,.15),0 0 60px rgba(255,138,101,.35); }
+.lv5 .center-node { background: radial-gradient(circle at 35% 35%,#f3e5f5,#7b1fa2); box-shadow:0 0 0 8px rgba(206,147,216,.15),0 0 60px rgba(206,147,216,.35); color:#fff; }
+.lv6 .center-node { background: radial-gradient(circle at 35% 35%,#fce4ec,#c2185b); box-shadow:0 0 0 8px rgba(240,98,146,.15),0 0 60px rgba(240,98,146,.35); color:#fff; }
+.lv7 .center-node { background: radial-gradient(circle at 35% 35%,#b2dfdb,#00695c); box-shadow:0 0 0 8px rgba(77,182,172,.15),0 0 60px rgba(77,182,172,.35); }
+.lv8 .center-node { background: radial-gradient(circle at 35% 35%,#fff8e1,#f57f17); box-shadow:0 0 0 8px rgba(255,183,77,.15),0 0 60px rgba(255,183,77,.35); }
+
+@keyframes pulse {
+  0%,100% { transform: scale(1); }
+  50%      { transform: scale(1.04); }
+}
+
+/* ── branches grid ── */
+.branches {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  gap: 18px;
+}
+
+/* ── branch card ── */
+.branch {
+  background: var(--card-bg);
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.07);
+  padding: 18px 18px 20px;
+  position: relative;
+  overflow: hidden;
+  transition: transform .22s, box-shadow .22s;
+}
+.branch:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 36px rgba(0,0,0,.45);
+}
+.branch::before {
+  content:'';
+  position:absolute;
+  top:0;left:0;
+  width:4px;height:100%;
+  border-radius:16px 0 0 16px;
+  background: var(--col);
+}
+
+/* Color classes */
+.bc1{--col:#4fc3f7} .bc2{--col:#81c784} .bc3{--col:#ff8a65}
+.bc4{--col:#ce93d8} .bc5{--col:#f06292} .bc6{--col:#4db6ac}
+.bc7{--col:#ffb74d} .bc8{--col:#ef9a9a} .bc9{--col:#80cbc4}
+.bc10{--col:#ffe082}
+
+.branch-header {
+  display:flex; align-items:center; gap:11px; margin-bottom:14px;
+}
+.branch-icon {
+  width:40px; height:40px; border-radius:11px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:19px; flex-shrink:0;
+  background: color-mix(in srgb, var(--col) 18%, transparent);
+}
+.branch-title {
+  font-size:15px; font-weight:700; color:var(--col); line-height:1.2;
+}
+.branch-num {
+  font-family:'Space Mono',monospace; font-size:9px;
+  color:rgba(255,255,255,.22); letter-spacing:1px;
+}
+
+.kp-list { list-style:none; display:flex; flex-direction:column; gap:5px; }
+.kp-item {
+  display:flex; align-items:flex-start; gap:7px;
+  font-size:12.5px; color:rgba(255,255,255,.74); line-height:1.5;
+}
+.kp-dot {
+  width:6px; height:6px; border-radius:50%;
+  background:var(--col); flex-shrink:0; margin-top:6px; opacity:.8;
+}
+.kp-sub { margin-left:13px; font-size:11.5px; color:rgba(255,255,255,.42); }
+.kp-sub .kp-dot { width:4px; height:4px; background:rgba(255,255,255,.28); }
+
+/* ── exam info bar ── */
+.exam-info {
+  display:flex; flex-wrap:wrap; gap:10px;
+  justify-content:center; margin-top:26px;
+}
+.exam-card {
+  background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:12px; padding:12px 22px; text-align:center; min-width:140px;
+}
+.exam-card .val {
+  font-size:20px; font-weight:900; font-family:'Space Mono',monospace; color:#f0c040;
+}
+.exam-card .lbl { font-size:11px; color:rgba(255,255,255,.4); margin-top:3px; }
+
+@media(max-width:600px){
+  .branches{grid-template-columns:1fr;}
+  .center-node{width:120px;height:120px;font-size:15px;}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="badge">CCF GESP · C++ · 一至八级</div>
+  <h1>C++ 一至八级大纲</h1>
+  <p>点击标签切换级别 · 共 8 个级别</p>
+</header>
+
+<!-- TAB BUTTONS -->
+<div class="tab-nav">
+  <button class="tab-btn active" data-lv="1" onclick="switchTab(1)">一级</button>
+  <button class="tab-btn" data-lv="2" onclick="switchTab(2)">二级</button>
+  <button class="tab-btn" data-lv="3" onclick="switchTab(3)">三级</button>
+  <button class="tab-btn" data-lv="4" onclick="switchTab(4)">四级</button>
+  <button class="tab-btn" data-lv="5" onclick="switchTab(5)">五级</button>
+  <button class="tab-btn" data-lv="6" onclick="switchTab(6)">六级</button>
+  <button class="tab-btn" data-lv="7" onclick="switchTab(7)">七级</button>
+  <button class="tab-btn" data-lv="8" onclick="switchTab(8)">八级</button>
+</div>
+
+<!-- ════════════════════════════════════════
+     一级
+════════════════════════════════════════ -->
+<div class="tab-panel active lv1" id="panel-1">
+<div class="map-wrapper">
+  <div class="center-node">C++ 一级<span>知识体系</span></div>
+  <div class="branches">
+
+    <div class="branch bc1">
+      <div class="branch-header">
+        <div class="branch-icon">🖥️</div>
+        <div><div class="branch-num">BLOCK 01</div><div class="branch-title">计算机基础知识</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>计算机的软硬件组成</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>CPU · 内存 · I/O 设备</li>
+        <li class="kp-item"><span class="kp-dot"></span>操作系统基本概念与常见操作</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>Windows · Linux</li>
+        <li class="kp-item"><span class="kp-dot"></span>计算机发展历程</li>
+        <li class="kp-item"><span class="kp-dot"></span>计算机在现代社会的常见应用</li>
+      </ul>
+    </div>
+
+    <div class="branch bc2">
+      <div class="branch-header">
+        <div class="branch-icon">⚙️</div>
+        <div><div class="branch-num">BLOCK 02</div><div class="branch-title">集成开发环境</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>熟悉 Dev C++ 等 IDE 的使用</li>
+        <li class="kp-item"><span class="kp-dot"></span>创建 / 编辑 / 保存文件</li>
+        <li class="kp-item"><span class="kp-dot"></span>编译与解释的概念</li>
+        <li class="kp-item"><span class="kp-dot"></span>程序调试基础</li>
+      </ul>
+    </div>
+
+    <div class="branch bc3">
+      <div class="branch-header">
+        <div class="branch-icon">🔄</div>
+        <div><div class="branch-num">BLOCK 03</div><div class="branch-title">结构化程序设计</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>顺序结构</li>
+        <li class="kp-item"><span class="kp-dot"></span>分支结构</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>if · if-else · switch · 三目运算</li>
+        <li class="kp-item"><span class="kp-dot"></span>循环结构</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>for · while · do-while</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>continue · break</li>
+      </ul>
+    </div>
+
+    <div class="branch bc4">
+      <div class="branch-header">
+        <div class="branch-icon">📝</div>
+        <div><div class="branch-num">BLOCK 04</div><div class="branch-title">程序的基本语句</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>输入语句</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>cin · scanf</li>
+        <li class="kp-item"><span class="kp-dot"></span>输出语句</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>cout · printf</li>
+        <li class="kp-item"><span class="kp-dot"></span>赋值语句 · 复合语句</li>
+        <li class="kp-item"><span class="kp-dot"></span>注释 · 调试的概念</li>
+      </ul>
+    </div>
+
+    <div class="branch bc5">
+      <div class="branch-header">
+        <div class="branch-icon">💡</div>
+        <div><div class="branch-num">BLOCK 05</div><div class="branch-title">程序的基本概念</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>标识符 · 关键字</li>
+        <li class="kp-item"><span class="kp-dot"></span>常量 · 变量 · 表达式</li>
+        <li class="kp-item"><span class="kp-dot"></span>变量的命名 · 定义 · 初始化 · 赋值</li>
+        <li class="kp-item"><span class="kp-dot"></span>变量的自加（++）与自减（--）</li>
+      </ul>
+    </div>
+
+    <div class="branch bc6">
+      <div class="branch-header">
+        <div class="branch-icon">🔢</div>
+        <div><div class="branch-num">BLOCK 06</div><div class="branch-title">基本运算</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>算术运算</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>+ · - · * · / · 整除 · % 求余</li>
+        <li class="kp-item"><span class="kp-dot"></span>关系运算</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>&gt; · &gt;= · &lt; · &lt;= · == · !=</li>
+        <li class="kp-item"><span class="kp-dot"></span>逻辑运算</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>&amp;&amp; · || · !</li>
+        <li class="kp-item"><span class="kp-dot"></span>三目运算 · 自增自减运算</li>
+      </ul>
+    </div>
+
+    <div class="branch bc7">
+      <div class="branch-header">
+        <div class="branch-icon">📦</div>
+        <div><div class="branch-num">BLOCK 07</div><div class="branch-title">基本数据类型</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>整数型</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>int · long long</li>
+        <li class="kp-item"><span class="kp-dot"></span>实数型（浮点型）</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>float · double</li>
+        <li class="kp-item"><span class="kp-dot"></span>字符型</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>char</li>
+        <li class="kp-item"><span class="kp-dot"></span>布尔型</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>bool（true / false）</li>
+      </ul>
+    </div>
+
+  </div>
+  <div class="exam-info">
+    <div class="exam-card"><div class="val">15题</div><div class="lbl">单选 · 每题 2 分</div></div>
+    <div class="exam-card"><div class="val">10题</div><div class="lbl">判断 · 每题 2 分</div></div>
+    <div class="exam-card"><div class="val">2题</div><div class="lbl">编程 · 每题 25 分</div></div>
+    <div class="exam-card"><div class="val">120min</div><div class="lbl">考试时长</div></div>
+  </div>
+</div>
+</div>
+
+<!-- ════════════════════════════════════════
+     二级
+════════════════════════════════════════ -->
+<div class="tab-panel lv2" id="panel-2">
+<div class="map-wrapper">
+  <div class="center-node">C++ 二级<span>知识体系</span></div>
+  <div class="branches">
+
+    <div class="branch bc1">
+      <div class="branch-header">
+        <div class="branch-icon">💾</div>
+        <div><div class="branch-num">BLOCK 01</div><div class="branch-title">计算机存储与网络</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>存储器分类</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>RAM（随机存储）· ROM（只读）· Cache（高速缓存）</li>
+        <li class="kp-item"><span class="kp-dot"></span>计算机网络分类</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>WAN 广域网 · MAN 城域网 · LAN 局域网</li>
+        <li class="kp-item"><span class="kp-dot"></span>网络层级结构</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>TCP/IP 四层模型 · OSI 七层模型</li>
+        <li class="kp-item"><span class="kp-dot"></span>IP 地址及子网划分</li>
+      </ul>
+    </div>
+
+    <div class="branch bc2">
+      <div class="branch-header">
+        <div class="branch-icon">💬</div>
+        <div><div class="branch-num">BLOCK 02</div><div class="branch-title">程序设计语言</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>语言分类</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>机器语言 · 汇编语言 · 高级语言</li>
+        <li class="kp-item"><span class="kp-dot"></span>常见高级语言</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>C++ · Python · Java 等</li>
+      </ul>
+    </div>
+
+    <div class="branch bc3">
+      <div class="branch-header">
+        <div class="branch-icon">📊</div>
+        <div><div class="branch-num">BLOCK 03</div><div class="branch-title">流程图</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>流程图的概念与基本符号</li>
+        <li class="kp-item"><span class="kp-dot"></span>绘制流程图的方法</li>
+        <li class="kp-item"><span class="kp-dot"></span>用流程图描述三种基本结构</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>顺序 · 分支 · 循环</li>
+      </ul>
+    </div>
+
+    <div class="branch bc4">
+      <div class="branch-header">
+        <div class="branch-icon">🔤</div>
+        <div><div class="branch-num">BLOCK 04</div><div class="branch-title">ASCII 编码</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>ASCII 编码原理</li>
+        <li class="kp-item"><span class="kp-dot"></span>常用字符编码（必记）</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>空格：32 · '0'：48 · 'A'：65 · 'a'：97</li>
+        <li class="kp-item"><span class="kp-dot"></span>字符与 ASCII 码相互转换</li>
+      </ul>
+    </div>
+
+    <div class="branch bc5">
+      <div class="branch-header">
+        <div class="branch-icon">🔁</div>
+        <div><div class="branch-num">BLOCK 05</div><div class="branch-title">数据类型转换</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>强制类型转换</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>(int)x · (double)x 等</li>
+        <li class="kp-item"><span class="kp-dot"></span>隐式类型转换</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>低精度向高精度自动转换</li>
+      </ul>
+    </div>
+
+    <div class="branch bc6">
+      <div class="branch-header">
+        <div class="branch-icon">🌿</div>
+        <div><div class="branch-num">BLOCK 06</div><div class="branch-title">多层分支结构</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>if 语句嵌套</li>
+        <li class="kp-item"><span class="kp-dot"></span>if...else 语句嵌套</li>
+        <li class="kp-item"><span class="kp-dot"></span>switch 语句嵌套</li>
+      </ul>
+    </div>
+
+    <div class="branch bc7">
+      <div class="branch-header">
+        <div class="branch-icon">🔃</div>
+        <div><div class="branch-num">BLOCK 07</div><div class="branch-title">多层循环结构</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>while 循环嵌套</li>
+        <li class="kp-item"><span class="kp-dot"></span>do...while 循环嵌套</li>
+        <li class="kp-item"><span class="kp-dot"></span>for 循环嵌套</li>
+        <li class="kp-item"><span class="kp-dot"></span>三种循环相互嵌套</li>
+      </ul>
+    </div>
+
+    <div class="branch bc8">
+      <div class="branch-header">
+        <div class="branch-icon">📐</div>
+        <div><div class="branch-num">BLOCK 08</div><div class="branch-title">数学函数</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>abs() — 绝对值</li>
+        <li class="kp-item"><span class="kp-dot"></span>sqrt() — 平方根</li>
+        <li class="kp-item"><span class="kp-dot"></span>max() / min() — 最大/最小值</li>
+        <li class="kp-item"><span class="kp-dot"></span>rand() / srand() — 随机数</li>
+      </ul>
+    </div>
+
+  </div>
+  <div class="exam-info">
+    <div class="exam-card"><div class="val">15题</div><div class="lbl">单选 · 每题 2 分</div></div>
+    <div class="exam-card"><div class="val">10题</div><div class="lbl">判断 · 每题 2 分</div></div>
+    <div class="exam-card"><div class="val">2题</div><div class="lbl">编程 · 每题 25 分</div></div>
+    <div class="exam-card"><div class="val">120min</div><div class="lbl">考试时长</div></div>
+  </div>
+</div>
+</div>
+
+<!-- ════════════════════════════════════════
+     三级
+════════════════════════════════════════ -->
+<div class="tab-panel lv3" id="panel-3">
+<div class="map-wrapper">
+  <div class="center-node">C++ 三级<span>知识体系</span></div>
+  <div class="branches">
+
+    <div class="branch bc1">
+      <div class="branch-header">
+        <div class="branch-icon">🔢</div>
+        <div><div class="branch-num">BLOCK 01</div><div class="branch-title">数据编码</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>原码</li>
+        <li class="kp-item"><span class="kp-dot"></span>反码</li>
+        <li class="kp-item"><span class="kp-dot"></span>补码</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>负数在计算机中的表示方式</li>
+      </ul>
+    </div>
+
+    <div class="branch bc2">
+      <div class="branch-header">
+        <div class="branch-icon">🔀</div>
+        <div><div class="branch-num">BLOCK 02</div><div class="branch-title">进制转换</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>二进制（Binary）</li>
+        <li class="kp-item"><span class="kp-dot"></span>八进制（Octal）</li>
+        <li class="kp-item"><span class="kp-dot"></span>十进制（Decimal）</li>
+        <li class="kp-item"><span class="kp-dot"></span>十六进制（Hexadecimal）</li>
+        <li class="kp-item"><span class="kp-dot"></span>四种进制之间相互转换</li>
+      </ul>
+    </div>
+
+    <div class="branch bc3">
+      <div class="branch-header">
+        <div class="branch-icon">⚡</div>
+        <div><div class="branch-num">BLOCK 03</div><div class="branch-title">位运算</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>与 &nbsp;&amp; （AND）</li>
+        <li class="kp-item"><span class="kp-dot"></span>或 &nbsp;| （OR）</li>
+        <li class="kp-item"><span class="kp-dot"></span>非 &nbsp;~ （NOT）</li>
+        <li class="kp-item"><span class="kp-dot"></span>异或 ^ （XOR）</li>
+        <li class="kp-item"><span class="kp-dot"></span>左移 &lt;&lt; · 右移 &gt;&gt;</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>左移=×2 · 右移=÷2</li>
+      </ul>
+    </div>
+
+    <div class="branch bc4">
+      <div class="branch-header">
+        <div class="branch-icon">📋</div>
+        <div><div class="branch-num">BLOCK 04</div><div class="branch-title">算法与描述</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>算法的概念与特性</li>
+        <li class="kp-item"><span class="kp-dot"></span>自然语言描述算法</li>
+        <li class="kp-item"><span class="kp-dot"></span>流程图描述算法</li>
+        <li class="kp-item"><span class="kp-dot"></span>伪代码描述算法</li>
+        <li class="kp-item"><span class="kp-dot"></span>枚举法（暴力枚举）</li>
+        <li class="kp-item"><span class="kp-dot"></span>模拟法</li>
+      </ul>
+    </div>
+
+    <div class="branch bc5">
+      <div class="branch-header">
+        <div class="branch-icon">📦</div>
+        <div><div class="branch-num">BLOCK 05</div><div class="branch-title">一维数组</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>数组的定义与初始化</li>
+        <li class="kp-item"><span class="kp-dot"></span>数组的访问与遍历</li>
+        <li class="kp-item"><span class="kp-dot"></span>数组与循环结合使用</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>不包括变长数组</li>
+      </ul>
+    </div>
+
+    <div class="branch bc6">
+      <div class="branch-header">
+        <div class="branch-icon">🔤</div>
+        <div><div class="branch-num">BLOCK 06</div><div class="branch-title">字符串及其函数</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>字符串基本概念</li>
+        <li class="kp-item"><span class="kp-dot"></span>大小写转换</li>
+        <li class="kp-item"><span class="kp-dot"></span>字符串搜索</li>
+        <li class="kp-item"><span class="kp-dot"></span>字符串分割</li>
+        <li class="kp-item"><span class="kp-dot"></span>字符串替换</li>
+      </ul>
+    </div>
+
+  </div>
+  <div class="exam-info">
+    <div class="exam-card"><div class="val">15题</div><div class="lbl">单选 · 每题 2 分</div></div>
+    <div class="exam-card"><div class="val">10题</div><div class="lbl">判断 · 每题 2 分</div></div>
+    <div class="exam-card"><div class="val">2题</div><div class="lbl">编程 · 每题 25 分</div></div>
+    <div class="exam-card"><div class="val">120min</div><div class="lbl">考试时长</div></div>
+  </div>
+</div>
+</div>
+
+<!-- ════════════════════════════════════════
+     四级
+════════════════════════════════════════ -->
+<div class="tab-panel lv4" id="panel-4">
+<div class="map-wrapper">
+  <div class="center-node">C++ 四级<span>知识体系</span></div>
+  <div class="branches">
+
+    <div class="branch bc1">
+      <div class="branch-header">
+        <div class="branch-icon">👆</div>
+        <div><div class="branch-num">BLOCK 01</div><div class="branch-title">指针</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>指针类型的概念</li>
+        <li class="kp-item"><span class="kp-dot"></span>指针变量的定义</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>int* p;</li>
+        <li class="kp-item"><span class="kp-dot"></span>指针的赋值</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>p = &amp;x;</li>
+        <li class="kp-item"><span class="kp-dot"></span>指针的解引用</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>*p 访问所指向的值</li>
+      </ul>
+    </div>
+
+    <div class="branch bc2">
+      <div class="branch-header">
+        <div class="branch-icon">🗂️</div>
+        <div><div class="branch-num">BLOCK 02</div><div class="branch-title">二维及多维数组</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>二维数组的定义与使用</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>int a[3][4];</li>
+        <li class="kp-item"><span class="kp-dot"></span>多维数组的扩展</li>
+        <li class="kp-item"><span class="kp-dot"></span>内存中的行优先存储</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>不包括变长数组</li>
+      </ul>
+    </div>
+
+    <div class="branch bc3">
+      <div class="branch-header">
+        <div class="branch-icon">🏗️</div>
+        <div><div class="branch-num">BLOCK 03</div><div class="branch-title">结构体</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>结构体定义与使用</li>
+        <li class="kp-item"><span class="kp-dot"></span>结构体数组</li>
+        <li class="kp-item"><span class="kp-dot"></span>结构体指针</li>
+        <li class="kp-item"><span class="kp-dot"></span>结构体嵌套结构体</li>
+        <li class="kp-item"><span class="kp-dot"></span>结构体作为函数参数</li>
+        <li class="kp-item"><span class="kp-dot"></span>结构体中 const 的使用</li>
+      </ul>
+    </div>
+
+    <div class="branch bc4">
+      <div class="branch-header">
+        <div class="branch-icon">⚙️</div>
+        <div><div class="branch-num">BLOCK 04</div><div class="branch-title">函数</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>函数的定义 · 调用 · 声明</li>
+        <li class="kp-item"><span class="kp-dot"></span>形参与实参</li>
+        <li class="kp-item"><span class="kp-dot"></span>全局作用域 · 局部作用域</li>
+        <li class="kp-item"><span class="kp-dot"></span>参数传递方式</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>值传递 · 引用传递 · 指针传递</li>
+      </ul>
+    </div>
+
+    <div class="branch bc5">
+      <div class="branch-header">
+        <div class="branch-icon">➡️</div>
+        <div><div class="branch-num">BLOCK 05</div><div class="branch-title">递推算法</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>递推算法基本思想</li>
+        <li class="kp-item"><span class="kp-dot"></span>递推关系式的推导</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>如斐波那契 f(n)=f(n-1)+f(n-2)</li>
+        <li class="kp-item"><span class="kp-dot"></span>递推问题的求解</li>
+      </ul>
+    </div>
+
+    <div class="branch bc6">
+      <div class="branch-header">
+        <div class="branch-icon">🔃</div>
+        <div><div class="branch-num">BLOCK 06</div><div class="branch-title">排序算法</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>冒泡排序</li>
+        <li class="kp-item"><span class="kp-dot"></span>插入排序</li>
+        <li class="kp-item"><span class="kp-dot"></span>选择排序</li>
+        <li class="kp-item"><span class="kp-dot"></span>排序稳定性 · 时间 / 空间复杂度</li>
+        <li class="kp-item"><span class="kp-dot"></span>内排序与外排序概念</li>
+        <li class="kp-item"><span class="kp-dot"></span>简单算法复杂度估算</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>多项式复杂度 · 指数复杂度</li>
+      </ul>
+    </div>
+
+    <div class="branch bc7">
+      <div class="branch-header">
+        <div class="branch-icon">📁</div>
+        <div><div class="branch-num">BLOCK 07</div><div class="branch-title">文件操作</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>文件重定向</li>
+        <li class="kp-item"><span class="kp-dot"></span>读操作（ifstream）</li>
+        <li class="kp-item"><span class="kp-dot"></span>写操作（ofstream）</li>
+        <li class="kp-item"><span class="kp-dot"></span>读写操作（fstream）</li>
+      </ul>
+    </div>
+
+    <div class="branch bc8">
+      <div class="branch-header">
+        <div class="branch-icon">🛡️</div>
+        <div><div class="branch-num">BLOCK 08</div><div class="branch-title">异常处理</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>异常处理机制</li>
+        <li class="kp-item"><span class="kp-dot"></span>try / catch / throw</li>
+        <li class="kp-item"><span class="kp-dot"></span>常用异常处理方法</li>
+      </ul>
+    </div>
+
+  </div>
+  <div class="exam-info">
+    <div class="exam-card"><div class="val">15题</div><div class="lbl">单选 · 每题 2 分</div></div>
+    <div class="exam-card"><div class="val">10题</div><div class="lbl">判断 · 每题 2 分</div></div>
+    <div class="exam-card"><div class="val">2题</div><div class="lbl">编程 · 每题 25 分</div></div>
+    <div class="exam-card"><div class="val">120min</div><div class="lbl">考试时长</div></div>
+  </div>
+</div>
+</div>
+
+<!-- ════════════════════════════════════════
+     五级
+════════════════════════════════════════ -->
+<div class="tab-panel lv5" id="panel-5">
+<div class="map-wrapper">
+  <div class="center-node">C++ 五级<span>知识体系</span></div>
+  <div class="branches">
+
+    <div class="branch bc1">
+      <div class="branch-header">
+        <div class="branch-icon">🔢</div>
+        <div><div class="branch-num">BLOCK 01</div><div class="branch-title">初等数论</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>素数与合数</li>
+        <li class="kp-item"><span class="kp-dot"></span>最大公约数 (GCD) · 最小公倍数 (LCM)</li>
+        <li class="kp-item"><span class="kp-dot"></span>同余与模运算</li>
+        <li class="kp-item"><span class="kp-dot"></span>约数与倍数</li>
+        <li class="kp-item"><span class="kp-dot"></span>质因数分解</li>
+        <li class="kp-item"><span class="kp-dot"></span>奇偶性</li>
+        <li class="kp-item"><span class="kp-dot"></span>欧几里得算法（辗转相除法）</li>
+        <li class="kp-item"><span class="kp-dot"></span>唯一分解定理</li>
+        <li class="kp-item"><span class="kp-dot"></span>埃氏筛法 · 线性筛法（欧拉筛）</li>
+      </ul>
+    </div>
+
+    <div class="branch bc2">
+      <div class="branch-header">
+        <div class="branch-icon">📊</div>
+        <div><div class="branch-num">BLOCK 02</div><div class="branch-title">算法复杂度估算</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>含多项式的算法复杂度</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>O(1) · O(n) · O(n²) · O(n³)</li>
+        <li class="kp-item"><span class="kp-dot"></span>含对数的算法复杂度</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>O(log n) · O(n log n)</li>
+      </ul>
+    </div>
+
+    <div class="branch bc3">
+      <div class="branch-header">
+        <div class="branch-icon">🔢</div>
+        <div><div class="branch-num">BLOCK 03</div><div class="branch-title">高精度运算</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>数组模拟高精度加法</li>
+        <li class="kp-item"><span class="kp-dot"></span>数组模拟高精度减法</li>
+        <li class="kp-item"><span class="kp-dot"></span>数组模拟高精度乘法</li>
+        <li class="kp-item"><span class="kp-dot"></span>数组模拟高精度除法</li>
+      </ul>
+    </div>
+
+    <div class="branch bc4">
+      <div class="branch-header">
+        <div class="branch-icon">🔗</div>
+        <div><div class="branch-num">BLOCK 04</div><div class="branch-title">链表</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>单链表</li>
+        <li class="kp-item"><span class="kp-dot"></span>双链表</li>
+        <li class="kp-item"><span class="kp-dot"></span>循环链表</li>
+        <li class="kp-item"><span class="kp-dot"></span>基本操作</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>创建 · 插入 · 删除 · 遍历 · 查找</li>
+      </ul>
+    </div>
+
+    <div class="branch bc5">
+      <div class="branch-header">
+        <div class="branch-icon">🔍</div>
+        <div><div class="branch-num">BLOCK 05</div><div class="branch-title">二分算法</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>二分查找算法</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>在有序数组中定位目标值</li>
+        <li class="kp-item"><span class="kp-dot"></span>二分答案算法（二分枚举法）</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>对答案范围进行二分</li>
+      </ul>
+    </div>
+
+    <div class="branch bc6">
+      <div class="branch-header">
+        <div class="branch-icon">🔄</div>
+        <div><div class="branch-num">BLOCK 06</div><div class="branch-title">递归算法</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>递归的概念与终止条件</li>
+        <li class="kp-item"><span class="kp-dot"></span>递归的时间 · 空间复杂度分析</li>
+        <li class="kp-item"><span class="kp-dot"></span>递归的优化策略</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>记忆化 · 尾递归</li>
+      </ul>
+    </div>
+
+    <div class="branch bc7">
+      <div class="branch-header">
+        <div class="branch-icon">✂️</div>
+        <div><div class="branch-num">BLOCK 07</div><div class="branch-title">分治算法</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>分治算法的基本原理</li>
+        <li class="kp-item"><span class="kp-dot"></span>归并排序</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>稳定 · O(n log n)</li>
+        <li class="kp-item"><span class="kp-dot"></span>快速排序</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>平均 O(n log n) · 最坏 O(n²)</li>
+      </ul>
+    </div>
+
+    <div class="branch bc8">
+      <div class="branch-header">
+        <div class="branch-icon">🥇</div>
+        <div><div class="branch-num">BLOCK 08</div><div class="branch-title">贪心算法</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>贪心算法的基本原理</li>
+        <li class="kp-item"><span class="kp-dot"></span>最优子结构</li>
+        <li class="kp-item"><span class="kp-dot"></span>贪心与动态规划的区别</li>
+      </ul>
+    </div>
+
+  </div>
+  <div class="exam-info">
+    <div class="exam-card"><div class="val">15题</div><div class="lbl">单选 · 每题 2 分</div></div>
+    <div class="exam-card"><div class="val">10题</div><div class="lbl">判断 · 每题 2 分</div></div>
+    <div class="exam-card"><div class="val">2题</div><div class="lbl">编程 · 每题 25 分</div></div>
+    <div class="exam-card"><div class="val">180min</div><div class="lbl">考试时长</div></div>
+  </div>
+</div>
+</div>
+
+<!-- ════════════════════════════════════════
+     六级
+════════════════════════════════════════ -->
+<div class="tab-panel lv6" id="panel-6">
+<div class="map-wrapper">
+  <div class="center-node">C++ 六级<span>知识体系</span></div>
+  <div class="branches">
+
+    <div class="branch bc1">
+      <div class="branch-header">
+        <div class="branch-icon">🌳</div>
+        <div><div class="branch-num">BLOCK 01</div><div class="branch-title">树</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>树的基本概念</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>根 · 叶 · 深度 · 高度</li>
+        <li class="kp-item"><span class="kp-dot"></span>哈夫曼树</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>最优二叉树 · 构建方法</li>
+        <li class="kp-item"><span class="kp-dot"></span>完全二叉树</li>
+        <li class="kp-item"><span class="kp-dot"></span>二叉排序树（BST）</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>插入 · 查找 · 删除</li>
+      </ul>
+    </div>
+
+    <div class="branch bc2">
+      <div class="branch-header">
+        <div class="branch-icon">🔣</div>
+        <div><div class="branch-num">BLOCK 02</div><div class="branch-title">基于树的编码</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>哈夫曼编码</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>变长编码 · 前缀码性质</li>
+        <li class="kp-item"><span class="kp-dot"></span>格雷编码</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>相邻码只有一位不同</li>
+      </ul>
+    </div>
+
+    <div class="branch bc3">
+      <div class="branch-header">
+        <div class="branch-icon">🔎</div>
+        <div><div class="branch-num">BLOCK 03</div><div class="branch-title">搜索算法</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>深度优先搜索 DFS</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>用栈实现 · 递归实现</li>
+        <li class="kp-item"><span class="kp-dot"></span>宽度优先搜索 BFS</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>用队列实现</li>
+        <li class="kp-item"><span class="kp-dot"></span>二叉树的搜索算法</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>前序 · 中序 · 后序 · 层序遍历</li>
+      </ul>
+    </div>
+
+    <div class="branch bc4">
+      <div class="branch-header">
+        <div class="branch-icon">📈</div>
+        <div><div class="branch-num">BLOCK 04</div><div class="branch-title">简单动态规划</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>一维动态规划</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>状态定义 · 转移方程 · 初始化</li>
+        <li class="kp-item"><span class="kp-dot"></span>简单背包问题</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>0/1 背包 · 内层倒序遍历</li>
+      </ul>
+    </div>
+
+    <div class="branch bc5">
+      <div class="branch-header">
+        <div class="branch-icon">🧱</div>
+        <div><div class="branch-num">BLOCK 05</div><div class="branch-title">面向对象</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>面向对象思想</li>
+        <li class="kp-item"><span class="kp-dot"></span>类的创建与初始化</li>
+        <li class="kp-item"><span class="kp-dot"></span>封装</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>数据隐藏 · public/private</li>
+        <li class="kp-item"><span class="kp-dot"></span>继承</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>基类 · 派生类</li>
+        <li class="kp-item"><span class="kp-dot"></span>多态</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>虚函数 · 运行时多态</li>
+      </ul>
+    </div>
+
+    <div class="branch bc6">
+      <div class="branch-header">
+        <div class="branch-icon">📚</div>
+        <div><div class="branch-num">BLOCK 06</div><div class="branch-title">栈和队列</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>栈（Stack）</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>LIFO · push / pop / top</li>
+        <li class="kp-item"><span class="kp-dot"></span>队列（Queue）</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>FIFO · push / pop / front</li>
+        <li class="kp-item"><span class="kp-dot"></span>循环队列</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>front / rear 指针 · 判空判满</li>
+      </ul>
+    </div>
+
+  </div>
+  <div class="exam-info">
+    <div class="exam-card"><div class="val">15题</div><div class="lbl">单选 · 每题 2 分</div></div>
+    <div class="exam-card"><div class="val">10题</div><div class="lbl">判断 · 每题 2 分</div></div>
+    <div class="exam-card"><div class="val">2题</div><div class="lbl">编程 · 每题 25 分</div></div>
+    <div class="exam-card"><div class="val">180min</div><div class="lbl">考试时长</div></div>
+  </div>
+</div>
+</div>
+
+<!-- ════════════════════════════════════════
+     七级
+════════════════════════════════════════ -->
+<div class="tab-panel lv7" id="panel-7">
+<div class="map-wrapper">
+  <div class="center-node">C++ 七级<span>知识体系</span></div>
+  <div class="branches">
+
+    <div class="branch bc1">
+      <div class="branch-header">
+        <div class="branch-icon">📐</div>
+        <div><div class="branch-num">BLOCK 01</div><div class="branch-title">数学库函数</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>三角函数</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>sin(x) · cos(x) · tan(x)</li>
+        <li class="kp-item"><span class="kp-dot"></span>对数函数</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>log10(x) · log2(x)</li>
+        <li class="kp-item"><span class="kp-dot"></span>指数函数</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>exp(x) · pow(x, y)</li>
+      </ul>
+    </div>
+
+    <div class="branch bc2">
+      <div class="branch-header">
+        <div class="branch-icon">📈</div>
+        <div><div class="branch-num">BLOCK 02</div><div class="branch-title">复杂动态规划</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>二维动态规划</li>
+        <li class="kp-item"><span class="kp-dot"></span>动态规划最值优化</li>
+        <li class="kp-item"><span class="kp-dot"></span>区间动态规划</li>
+        <li class="kp-item"><span class="kp-dot"></span>最长上升子序列（LIS）</li>
+        <li class="kp-item"><span class="kp-dot"></span>最长公共子序列（LCS）</li>
+        <li class="kp-item"><span class="kp-dot"></span>滚动数组降低空间复杂度</li>
+      </ul>
+    </div>
+
+    <div class="branch bc3">
+      <div class="branch-header">
+        <div class="branch-icon">🕸️</div>
+        <div><div class="branch-num">BLOCK 03</div><div class="branch-title">图的定义及遍历</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>图的概念</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>有向图 · 无向图 · 节点度</li>
+        <li class="kp-item"><span class="kp-dot"></span>图的存储结构</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>邻接矩阵 · 邻接表</li>
+        <li class="kp-item"><span class="kp-dot"></span>图的广度优先遍历 BFS</li>
+        <li class="kp-item"><span class="kp-dot"></span>图的深度优先遍历 DFS</li>
+      </ul>
+    </div>
+
+    <div class="branch bc4">
+      <div class="branch-header">
+        <div class="branch-icon">🌊</div>
+        <div><div class="branch-num">BLOCK 04</div><div class="branch-title">图论算法</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>泛洪算法（Flood Fill）</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>连通区域染色 · 岛屿计数</li>
+      </ul>
+    </div>
+
+    <div class="branch bc5">
+      <div class="branch-header">
+        <div class="branch-icon">#️⃣</div>
+        <div><div class="branch-num">BLOCK 05</div><div class="branch-title">哈希表</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>哈希表的概念</li>
+        <li class="kp-item"><span class="kp-dot"></span>哈希函数</li>
+        <li class="kp-item"><span class="kp-dot"></span>冲突处理</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>链地址法 · 开放地址法</li>
+        <li class="kp-item"><span class="kp-dot"></span>哈希表的应用</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>unordered_map · unordered_set</li>
+      </ul>
+    </div>
+
+  </div>
+  <div class="exam-info">
+    <div class="exam-card"><div class="val">15题</div><div class="lbl">单选 · 每题 2 分</div></div>
+    <div class="exam-card"><div class="val">10题</div><div class="lbl">判断 · 每题 2 分</div></div>
+    <div class="exam-card"><div class="val">2题</div><div class="lbl">编程 · 每题 25 分</div></div>
+    <div class="exam-card"><div class="val">180min</div><div class="lbl">考试时长</div></div>
+  </div>
+</div>
+</div>
+
+<!-- ════════════════════════════════════════
+     八级
+════════════════════════════════════════ -->
+<div class="tab-panel lv8" id="panel-8">
+<div class="map-wrapper">
+  <div class="center-node">C++ 八级<span>知识体系</span></div>
+  <div class="branches">
+
+    <div class="branch bc1">
+      <div class="branch-header">
+        <div class="branch-icon">🔢</div>
+        <div><div class="branch-num">BLOCK 01</div><div class="branch-title">计数原理</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>加法原理</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>分类计数，各类互斥</li>
+        <li class="kp-item"><span class="kp-dot"></span>乘法原理</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>分步计数，各步独立</li>
+      </ul>
+    </div>
+
+    <div class="branch bc2">
+      <div class="branch-header">
+        <div class="branch-icon">🎲</div>
+        <div><div class="branch-num">BLOCK 02</div><div class="branch-title">排列与组合</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>排列（Permutation）</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>有序选取 · P(n,r) = n!/(n-r)!</li>
+        <li class="kp-item"><span class="kp-dot"></span>组合（Combination）</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>无序选取 · C(n,r) = n!/(r!(n-r)!)</li>
+        <li class="kp-item"><span class="kp-dot"></span>排列组合编程实现</li>
+      </ul>
+    </div>
+
+    <div class="branch bc3">
+      <div class="branch-header">
+        <div class="branch-icon">🔺</div>
+        <div><div class="branch-num">BLOCK 03</div><div class="branch-title">杨辉三角</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>杨辉三角的定义（帕斯卡三角形）</li>
+        <li class="kp-item"><span class="kp-dot"></span>C(n,r) = C(n-1,r-1) + C(n-1,r)</li>
+        <li class="kp-item"><span class="kp-dot"></span>杨辉三角的编程实现</li>
+        <li class="kp-item"><span class="kp-dot"></span>与组合数的关系</li>
+      </ul>
+    </div>
+
+    <div class="branch bc4">
+      <div class="branch-header">
+        <div class="branch-icon">⏫</div>
+        <div><div class="branch-num">BLOCK 04</div><div class="branch-title">倍增法</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>倍增法的概念</li>
+        <li class="kp-item"><span class="kp-dot"></span>时间复杂度 O(log n)</li>
+        <li class="kp-item"><span class="kp-dot"></span>应用场景</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>快速幂 · LCA 等</li>
+      </ul>
+    </div>
+
+    <div class="branch bc5">
+      <div class="branch-header">
+        <div class="branch-icon">📏</div>
+        <div><div class="branch-num">BLOCK 05</div><div class="branch-title">代数与平面几何</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>一元一次方程求解</li>
+        <li class="kp-item"><span class="kp-dot"></span>二元一次方程组求解</li>
+        <li class="kp-item"><span class="kp-dot"></span>基本图形面积</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>三角形 · 圆形 · 长方形</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>（限初中数学范围）</li>
+      </ul>
+    </div>
+
+    <div class="branch bc6">
+      <div class="branch-header">
+        <div class="branch-icon">🕸️</div>
+        <div><div class="branch-num">BLOCK 06</div><div class="branch-title">图论算法及综合应用</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>最小生成树</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>Kruskal 算法 · Prim 算法</li>
+        <li class="kp-item"><span class="kp-dot"></span>单源最短路径</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>Dijkstra 算法</li>
+        <li class="kp-item"><span class="kp-dot"></span>多源最短路径</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>Floyd 算法</li>
+        <li class="kp-item"><span class="kp-dot"></span>图论算法综合应用与问题求解</li>
+      </ul>
+    </div>
+
+    <div class="branch bc7">
+      <div class="branch-header">
+        <div class="branch-icon">⏱️</div>
+        <div><div class="branch-num">BLOCK 07</div><div class="branch-title">算法时空效率分析</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>时间复杂度分析方法</li>
+        <li class="kp-item"><span class="kp-dot"></span>空间复杂度分析方法</li>
+        <li class="kp-item"><span class="kp-dot"></span>各类算法的复杂度</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>排序 · 查找 · 遍历 · 搜索 · DP</li>
+      </ul>
+    </div>
+
+    <div class="branch bc8">
+      <div class="branch-header">
+        <div class="branch-icon">🚀</div>
+        <div><div class="branch-num">BLOCK 08</div><div class="branch-title">算法优化</div></div>
+      </div>
+      <ul class="kp-list">
+        <li class="kp-item"><span class="kp-dot"></span>不同算法的差异分析</li>
+        <li class="kp-item"><span class="kp-dot"></span>算法优化的一般方法</li>
+        <li class="kp-item"><span class="kp-dot"></span>用数学知识辅助优化</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>等差数列求和公式</li>
+        <li class="kp-item kp-sub"><span class="kp-dot"></span>等比数列求和公式</li>
+      </ul>
+    </div>
+
+  </div>
+  <div class="exam-info">
+    <div class="exam-card"><div class="val">15题</div><div class="lbl">单选 · 每题 2 分</div></div>
+    <div class="exam-card"><div class="val">10题</div><div class="lbl">判断 · 每题 2 分</div></div>
+    <div class="exam-card"><div class="val">2题</div><div class="lbl">编程 · 每题 25 分</div></div>
+    <div class="exam-card"><div class="val">180min</div><div class="lbl">考试时长</div></div>
+  </div>
+</div>
+</div>
+
+<script>
+function switchTab(lv) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelector(`.tab-btn[data-lv="${lv}"]`).classList.add('active');
+  document.getElementById(`panel-${lv}`).classList.add('active');
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+</script>
+</body>
+</html>

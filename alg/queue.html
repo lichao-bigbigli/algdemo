@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <!-- interactive-widget=resizes-content 优化安卓键盘弹出体验 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
+    <title>赛博朋克队列操作演示</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tsparticles/engine@2/tsparticles.engine.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tsparticles/preset-links@2/tsparticles.preset.links.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Courier New', 'Courier', 'monospace', 'system-ui'] },
+                    colors: {
+                        cyber: {
+                            black: '#020205',
+                            dark: '#0a0a12',
+                            blue: '#00f3ff',
+                            pink: '#ff00ff',
+                            purple: '#bc13fe',
+                            yellow: '#ffee00',
+                            green: '#00ff9f',
+                        }
+                    },
+                    boxShadow: {
+                        'neon-blue': '0 0 5px #00f3ff, 0 0 10px #00f3ff',
+                        'neon-pink': '0 0 5px #ff00ff, 0 0 10px #ff00ff',
+                        'neon-green': '0 0 5px #00ff9f, 0 0 10px #00ff9f',
+                        'neon-purple': '0 0 5px #bc13fe, 0 0 10px #bc13fe',
+                    },
+                    animation: {
+                        'glitch': 'glitch 1s linear infinite',
+                        'pulse-fast': 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'spin-slow': 'spin 20s linear infinite',
+                        'spin-reverse-slow': 'spinReverse 25s linear infinite',
+                    },
+                    keyframes: {
+                        glitch: {
+                            '2%, 64%': { transform: 'translate(2px,0) skew(0deg)' },
+                            '4%, 60%': { transform: 'translate(-2px,0) skew(0deg)' },
+                            '62%': { transform: 'translate(0,0) skew(5deg)' },
+                        },
+                        spinReverse: {
+                            '0%': { transform: 'rotate(360deg)' },
+                            '100%': { transform: 'rotate(0deg)' },
+                        }
+                    },
+                    screens: {
+                        'xs': '375px', 
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #020205;
+            color: #e0e0e0;
+            touch-action: manipulation;
+            overscroll-behavior: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        #tsparticles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+        #trail-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; }
+
+        .sidebar-cyber {
+            background: rgba(10, 10, 18, 0.92);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-top: 1px solid rgba(0, 243, 255, 0.3); 
+            box-shadow: 0 -5px 20px rgba(0, 243, 255, 0.1);
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        @media (min-width: 768px) {
+            .sidebar-cyber {
+                border-top: none;
+                border-right: 2px solid #00f3ff;
+                padding-bottom: 0;
+            }
+        }
+
+        .btn-cyber {
+            position: relative; background: transparent; border: 2px solid;
+            letter-spacing: 1px; transition: all 0.2s; overflow: hidden; z-index: 1;
+            font-family: 'Courier New', monospace; touch-action: manipulation;
+            user-select: none;
+        }
+        
+        .btn-cyber-blue { border-color: #00f3ff; color: #00f3ff; text-shadow: 0 0 8px rgba(0, 243, 255, 0.8); box-shadow: 0 0 10px rgba(0, 243, 255, 0.2); }
+        .btn-cyber-blue:active { background: #00f3ff; color: #000; box-shadow: 0 0 20px #00f3ff; transform: scale(0.96); }
+        @media(hover: hover) { .btn-cyber-blue:hover { background: #00f3ff; color: #000; box-shadow: 0 0 20px #00f3ff; } }
+
+        .btn-cyber-pink { border-color: #ff00ff; color: #ff00ff; text-shadow: 0 0 8px rgba(255, 0, 255, 0.8); box-shadow: 0 0 10px rgba(255, 0, 255, 0.2); }
+        .btn-cyber-pink:active { background: #ff00ff; color: #000; box-shadow: 0 0 20px #ff00ff; transform: scale(0.96); }
+        @media(hover: hover) { .btn-cyber-pink:hover { background: #ff00ff; color: #000; box-shadow: 0 0 20px #ff00ff; } }
+
+        .btn-cyber-purple { border-color: #bc13fe; color: #bc13fe; box-shadow: 0 0 5px rgba(188, 19, 254, 0.3); }
+        .btn-cyber-purple:active { background: #bc13fe; color: #fff; box-shadow: 0 0 15px #bc13fe; transform: scale(0.96); }
+        @media(hover: hover) { .btn-cyber-purple:hover { background: #bc13fe; color: #fff; box-shadow: 0 0 15px #bc13fe; } }
+
+        .btn-cyber-gray { border-color: #4b5563; color: #9ca3af; }
+        .btn-cyber-gray:active { border-color: #e5e7eb; color: #fff; box-shadow: 0 0 10px #fff; transform: scale(0.96); }
+        @media(hover: hover) { .btn-cyber-gray:hover { border-color: #e5e7eb; color: #fff; box-shadow: 0 0 10px #fff; } }
+
+        .queue-item {
+            background: rgba(0, 243, 255, 0.1); border: 2px solid #00f3ff; color: #00f3ff;
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.2); font-family: 'Courier New', monospace;
+            text-shadow: 0 0 5px #00f3ff; transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            min-width: 80px; /* 保证水平排列时的宽度 */
+        }
+        /* Front Item: Pink Style */
+        .queue-item.front-item {
+            border-color: #ff00ff; color: #ff00ff; background: rgba(255, 0, 255, 0.15);
+            box-shadow: 0 0 15px rgba(255, 0, 255, 0.4); text-shadow: 0 0 8px #ff00ff; z-index: 10;
+        }
+        /* Back Item: Blue Style */
+        .queue-item.back-item {
+            border-color: #00f3ff; color: #00f3ff; background: rgba(0, 243, 255, 0.15);
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.4); text-shadow: 0 0 8px #00f3ff; z-index: 9;
+        }
+        /* Both (Single element): Mixed Style */
+        .queue-item.front-item.back-item {
+            border-color: #fff; 
+            box-shadow: 0 0 10px #ff00ff, 0 0 10px #00f3ff;
+            background: linear-gradient(135deg, rgba(255,0,255,0.1) 0%, rgba(0,243,255,0.1) 100%);
+        }
+
+        /* 入队动画：从右侧飞入 */
+        .fly-in-right { animation: cyberSlideIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+        @keyframes cyberSlideIn { 
+            0% { opacity: 0; transform: translateX(200px) scale(0.5) rotateY(90deg); filter: blur(10px); } 
+            100% { opacity: 1; transform: translateX(0) scale(1) rotateY(0); filter: blur(0); } 
+        }
+
+        /* 出队动画：向左侧飞出 */
+        .pop-animation-left { animation: cyberSlideOut 0.5s ease-in forwards !important; }
+        @keyframes cyberSlideOut { 
+            0% { transform: translateX(0) scale(1); opacity: 1; filter: brightness(1); } 
+            30% { transform: translateX(10px) scale(0.9); opacity: 1; } 
+            100% { transform: translateX(-300px) rotate(-45deg) scale(0.8); opacity: 0; filter: blur(5px); } 
+        }
+
+        .glitch-text { position: relative; color: #fff; font-weight: 900; text-shadow: 2px 2px #ff00ff, -2px -2px #00f3ff; animation: glitch 1s infinite; }
+        
+        #explosion-overlay { pointer-events: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 100; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); }
+        .explosion-particle { position: absolute; pointer-events: none; box-shadow: 0 0 10px currentColor; }
+
+        .geo-circle { position: absolute; border-radius: 50%; border: 1px dashed rgba(0, 243, 255, 0.15); pointer-events: none; z-index: 0; }
+        .geo-square { position: absolute; border: 1px solid rgba(188, 19, 254, 0.1); pointer-events: none; z-index: 0; }
+        ::-webkit-scrollbar { height: 4px; width: 4px; }
+        ::-webkit-scrollbar-track { background: #0a0a12; }
+        ::-webkit-scrollbar-thumb { background: #00f3ff; border-radius: 2px; }
+        .h-dvh { height: 100vh; height: 100dvh; }
+    </style>
+</head>
+<body class="overflow-hidden flex flex-col-reverse md:flex-row h-dvh w-screen font-mono">
+
+    <div id="tsparticles"></div>
+    <canvas id="trail-canvas"></canvas>
+
+    <!-- Background Geometry -->
+    <div class="fixed inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
+        <div class="geo-circle w-[280px] h-[280px] md:w-[600px] md:h-[600px] animate-spin-slow border-t-transparent border-l-transparent"></div>
+        <div class="geo-circle w-[200px] h-[200px] md:w-[450px] md:h-[450px] animate-spin-reverse-slow border-b-transparent border-r-transparent" style="border-color: rgba(255, 0, 255, 0.15);"></div>
+        <div class="geo-square w-[140px] h-[140px] md:w-[300px] md:h-[300px] animate-spin-slow" style="transform: rotate(45deg);"></div>
+        <div class="absolute inset-0 bg-[linear-gradient(rgba(0,243,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,243,255,0.03)_1px,transparent_1px)] bg-[size:30px_30px] md:bg-[size:50px_50px] [transform:perspective(500px)_rotateX(60deg)_scale(3)] origin-top opacity-50"></div>
+    </div>
+
+    <!-- Sidebar (Controls) -->
+    <aside class="w-full md:w-96 sidebar-cyber flex flex-col z-20 flex-shrink-0 h-[40%] md:h-full">
+        <!-- 桌面端标题 -->
+        <div class="hidden md:block p-6 border-b border-cyber-blue/30 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-cyber-blue/20 to-transparent"></div>
+            <h1 class="text-3xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyber-blue to-cyber-pink drop-shadow-[0_0_10px_rgba(0,243,255,0.5)]">STD::QUEUE</h1>
+            <p class="text-[10px] text-cyber-blue/70 mt-1 tracking-[0.3em]">FIFO VISUALIZER</p>
+        </div>
+        
+        <!-- 手机端顶部把手装饰 -->
+        <div class="md:hidden w-full pt-2 pb-1 flex justify-center cursor-pointer" onclick="document.getElementById('input-value').blur()">
+             <div class="w-12 h-1 bg-cyber-blue/30 rounded-full"></div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-3 md:p-6 space-y-3 md:space-y-6">
+            
+            <!-- Standard Input -->
+            <div class="space-y-1 md:space-y-2 group">
+                <label class="text-[10px] text-cyber-pink font-bold uppercase tracking-widest pl-1">>> INPUT_DATA</label>
+                <div class="relative">
+                    <input type="text" id="input-value" placeholder="Type value..." 
+                           class="w-full bg-cyber-black/50 border border-gray-600 text-cyber-blue rounded-lg md:rounded-none px-3 py-2 md:px-4 md:py-3 focus:border-cyber-blue focus:shadow-neon-blue outline-none transition-all placeholder-gray-600 font-bold text-base"
+                           onkeypress="if(event.key === 'Enter') pushValue()">
+                    <div class="hidden md:block absolute right-0 top-0 h-full w-2 bg-cyber-blue/20"></div>
+                </div>
+            </div>
+
+            <!-- Standard Operations -->
+            <div class="grid grid-cols-2 gap-3 md:gap-4">
+                <button onclick="pushValue()" class="btn-cyber btn-cyber-blue py-3 md:py-4 font-black text-lg md:text-xl flex flex-col items-center justify-center gap-1 rounded-lg md:rounded-none">
+                    <span>push()</span><span class="text-[10px] font-normal opacity-70">enqueue</span>
+                </button>
+                <button onclick="popValue()" class="btn-cyber btn-cyber-pink py-3 md:py-4 font-black text-lg md:text-xl flex flex-col items-center justify-center gap-1 rounded-lg md:rounded-none">
+                    <span>pop()</span><span class="text-[10px] font-normal opacity-70">dequeue</span>
+                </button>
+            </div>
+
+            <!-- Observers -->
+            <div class="space-y-2 pt-2 md:pt-4 border-t border-gray-800/50">
+                <div class="flex flex-col gap-2 md:gap-3">
+                    <div class="grid grid-cols-2 gap-2 md:gap-3">
+                        <button onclick="peekValue()" class="btn-cyber btn-cyber-purple py-2.5 md:py-3 text-base md:text-lg font-bold flex items-center justify-center gap-2 rounded-lg md:rounded-none">
+                            front()
+                        </button>
+                        <button onclick="peekBack()" class="btn-cyber btn-cyber-purple py-2.5 md:py-3 text-base md:text-lg font-bold flex items-center justify-center gap-2 rounded-lg md:rounded-none">
+                            back()
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 md:gap-3">
+                        <button onclick="checkSize()" class="btn-cyber btn-cyber-gray py-2.5 md:py-3 text-xs md:text-sm font-bold flex items-center justify-center gap-1 group rounded-lg md:rounded-none">
+                            <span>size()</span>
+                            <span id="size-indicator" class="text-cyber-green group-hover:text-white ml-1">0</span>
+                        </button>
+                        <button onclick="checkEmpty()" class="btn-cyber btn-cyber-gray py-2.5 md:py-3 text-xs md:text-sm font-bold text-cyber-yellow border-cyber-yellow rounded-lg md:rounded-none">
+                            empty()
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Desktop Log -->
+            <div class="hidden md:block flex-1 min-h-[100px] bg-black/80 border border-gray-700 p-3 text-[10px] overflow-y-auto font-mono shadow-inner relative">
+                <div class="absolute top-0 right-0 px-1 bg-cyber-blue text-black font-bold">STD::OUT</div>
+                <div id="message-box" class="space-y-1 mt-4 text-gray-400">
+                    <div class="text-cyber-green">> #include &lt;queue&gt;</div>
+                    <div class="text-cyber-green">> std::queue&lt;T&gt; q;</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Visual Area -->
+    <main class="flex-1 relative flex flex-col items-center justify-center overflow-hidden perspective-1000 z-10 h-[60%] md:h-full">
+        <div class="absolute top-4 right-4 md:top-10 md:right-10 text-right opacity-40 pointer-events-none select-none z-0">
+            <h2 class="text-4xl md:text-8xl font-black text-white mix-blend-overlay">QUEUE</h2>
+            <p class="text-xs md:text-2xl text-cyber-blue font-bold tracking-widest">FIFO CONTAINER</p>
+        </div>
+
+        <div id="mobile-log" class="md:hidden absolute top-4 left-4 text-[10px] text-cyber-green/90 font-mono pointer-events-none max-w-[200px] overflow-hidden whitespace-nowrap text-ellipsis z-20 bg-black/40 px-2 py-1 rounded backdrop-blur-sm border-l-2 border-cyber-green">
+            > SYSTEM READY
+        </div>
+
+        <div class="relative w-full h-full flex flex-col items-center justify-center z-10 px-4">
+            
+            <!-- Queue Container (Horizontal) -->
+            <!-- Using flex-row, items-center, overflow-x-auto for horizontal scrolling -->
+            <div id="queue-container" class="w-full max-w-4xl flex flex-row items-center gap-2 md:gap-4 p-4 md:p-8 min-h-[140px] overflow-x-auto overflow-y-hidden snap-x transition-all duration-300 scroll-smooth border-x-2 border-dashed border-cyber-blue/20">
+                <div id="empty-placeholder" class="text-center w-full py-10 animate-pulse flex-shrink-0">
+                    <div class="text-3xl md:text-6xl mb-2 md:mb-4 text-gray-700 font-thin">nullptr</div>
+                    <p class="text-[10px] md:text-xs text-cyber-pink tracking-[0.2em] md:tracking-[0.5em] uppercase border border-cyber-pink/30 px-2 py-1 inline-block">std::queue::empty()</p>
+                </div>
+            </div>
+            
+            <!-- Visual Track/Base -->
+            <div class="w-[90%] h-1 bg-cyber-blue/50 shadow-[0_0_20px_#00f3ff] rounded-full mt-2 relative z-0"></div>
+            <div class="text-[10px] text-cyber-blue/50 w-[90%] flex justify-between mt-1 font-bold tracking-widest">
+                <span>FRONT (OUT) &lt;&lt;&lt;</span>
+                <span>&lt;&lt;&lt; BACK (IN)</span>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let queue = [];
+        // Max capacity slightly higher for queue as it scrolls horizontally
+        const MAX_CAPACITY = 10; 
+        const queueContainer = document.getElementById('queue-container');
+        const inputValue = document.getElementById('input-value');
+        const messageBox = document.getElementById('message-box');
+        const mobileLog = document.getElementById('mobile-log');
+        const emptyPlaceholder = document.getElementById('empty-placeholder');
+        const sizeIndicator = document.getElementById('size-indicator');
+        let audioCtx = null;
+
+        // --- Standard Logic ---
+        function playSound(type) {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'push') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(300, now); osc.frequency.linearRampToValueAtTime(600, now + 0.15);
+                gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now); osc.stop(now + 0.2);
+            } else if (type === 'pop') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(600, now); osc.frequency.linearRampToValueAtTime(300, now + 0.15);
+                gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now); osc.stop(now + 0.2);
+            } else if (type === 'bling') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(1500, now);
+                gain.gain.setValueAtTime(0.05, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                osc.start(now); osc.stop(now + 0.1);
+            } else if (type === 'error') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(100, now); osc.frequency.linearRampToValueAtTime(50, now + 0.2);
+                gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.2);
+                osc.start(now); osc.stop(now + 0.2);
+            }
+        }
+
+        function log(msg, type = 'normal') {
+            if (mobileLog) {
+                mobileLog.textContent = "> " + msg.replace(/std::|cerr << |q\./g, '');
+                mobileLog.style.color = type === 'error' ? '#ff00ff' : '#00ff9f';
+                mobileLog.classList.remove('animate-pulse');
+                void mobileLog.offsetWidth; mobileLog.classList.add('animate-pulse');
+            }
+            const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+            let colorClass = 'text-gray-400';
+            if (type === 'success') colorClass = 'text-cyber-blue';
+            if (type === 'error') colorClass = 'text-cyber-pink';
+            if (type === 'warn') colorClass = 'text-cyber-yellow';
+            const line = document.createElement('div');
+            line.innerHTML = `<span class="opacity-50">[${time}]</span> <span class="${colorClass}">${msg}</span>`;
+            messageBox.prepend(line);
+        }
+
+        function getFrontElement() {
+            // In a queue container, the first element (excluding placeholder) is the front
+            const items = Array.from(queueContainer.children).filter(el => el.id !== 'empty-placeholder');
+            return items[0]; 
+        }
+
+        function updateMarkers() {
+            // Clear all markers
+            const items = queueContainer.querySelectorAll('.queue-item');
+            items.forEach(el => {
+                el.classList.remove('front-item', 'back-item');
+                const badges = el.querySelectorAll('.front-badge, .back-badge');
+                badges.forEach(b => b.remove());
+            });
+
+            const allItems = Array.from(queueContainer.children).filter(el => el.id !== 'empty-placeholder');
+            if (allItems.length === 0) return;
+
+            // Add Front Marker (First element)
+            const front = allItems[0];
+            front.classList.add('front-item');
+            const fMarker = document.createElement('div');
+            fMarker.className = 'front-badge absolute -top-6 left-1/2 -translate-x-1/2 text-[8px] md:text-[10px] text-cyber-pink border border-cyber-pink px-1 md:px-2 py-0.5 font-bold tracking-widest animate-pulse whitespace-nowrap bg-black/80';
+            fMarker.innerHTML = 'FRONT';
+            front.appendChild(fMarker);
+
+            // Add Back Marker (Last element)
+            const back = allItems[allItems.length - 1];
+            back.classList.add('back-item');
+            const bMarker = document.createElement('div');
+            // Position at bottom to distinct from Front
+            bMarker.className = 'back-badge absolute -bottom-6 left-1/2 -translate-x-1/2 text-[8px] md:text-[10px] text-cyber-blue border border-cyber-blue px-1 md:px-2 py-0.5 font-bold tracking-widest animate-pulse whitespace-nowrap bg-black/80';
+            bMarker.innerHTML = 'BACK';
+            back.appendChild(bMarker);
+        }
+
+        function pushValue() {
+            const val = inputValue.value.trim();
+            if (!val) { log("std::cerr << \"Error: NULL INPUT\";", "error"); playSound('error'); return; }
+            if (queue.length >= MAX_CAPACITY) { log("std::cerr << \"Error: OVERFLOW\";", "error"); playSound('error'); return; }
+
+            queue.push(val);
+            sizeIndicator.textContent = queue.length;
+            emptyPlaceholder.style.display = 'none';
+
+            const el = document.createElement('div');
+            el.className = `queue-item h-12 md:h-16 flex items-center justify-center text-base md:text-xl font-bold relative select-none fly-in-right rounded-md md:rounded-lg flex-shrink-0 px-4 bg-cyber-black/80`;
+            el.innerHTML = `<span class="z-10">${val}</span>`;
+            
+            const grid = document.createElement('div');
+            grid.className = 'absolute inset-0 opacity-20 bg-[linear-gradient(45deg,transparent_25%,#00f3ff_25%,#00f3ff_50%,transparent_50%,transparent_75%,#00f3ff_75%,#00f3ff_100%)] bg-[size:10px_10px]';
+            el.appendChild(grid);
+
+            queueContainer.appendChild(el);
+            updateMarkers(); // Update markers on every push
+            
+            // Scroll to end to see new item
+            setTimeout(() => {
+                queueContainer.scrollLeft = queueContainer.scrollWidth;
+            }, 100);
+
+            log(`q.push("${val}");`, "success");
+            playSound('push');
+            inputValue.value = "";
+            inputValue.focus();
+        }
+
+        function popValue() {
+            if (queue.length === 0) { log("std::cerr << \"Error: UNDERFLOW\";", "error"); playSound('error'); return; }
+            const val = queue[0];
+            const frontItem = getFrontElement();
+            playSound('pop');
+
+            if (frontItem) {
+                frontItem.classList.remove('fly-in-right', 'front-item', 'back-item'); // Remove styles for clean exit
+                frontItem.classList.add('pop-animation-left');
+                
+                // Remove badges immediately for cleaner animation
+                const badges = frontItem.querySelectorAll('.front-badge, .back-badge');
+                badges.forEach(b => b.remove());
+
+                setTimeout(() => {
+                    frontItem.remove();
+                    queue.shift();
+                    sizeIndicator.textContent = queue.length;
+                    log(`q.pop(); // removed "${val}"`, "warn");
+
+                    if (queue.length === 0) {
+                        emptyPlaceholder.style.display = 'block';
+                    } else {
+                        updateMarkers();
+                    }
+                }, 500);
+            }
+        }
+
+        function createExplosion(text, color, isGlitch = false) {
+            const overlay = document.createElement('div');
+            overlay.id = 'explosion-overlay';
+            const content = document.createElement('div');
+            content.className = `text-center z-50 p-6 md:p-10 border-4 border-${color === '#00ff9f' ? 'cyber-green' : 'cyber-pink'} bg-black/80 backdrop-blur-sm`;
+            if (color === '#00ff9f') content.style.borderColor = '#00ff9f'; else content.style.borderColor = '#ff00ff';
+
+            const title = document.createElement('div');
+            title.textContent = text;
+            title.className = `text-5xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-${color === '#00ff9f' ? 'cyber-green' : 'cyber-pink'} tracking-tighter`;
+            if (isGlitch) title.classList.add('glitch-text'); else title.style.textShadow = `0 0 20px ${color}`;
+            title.style.backgroundImage = `linear-gradient(to bottom, #ffffff, ${color})`;
+            
+            const sub = document.createElement('div');
+            sub.textContent = "RETURN VALUE";
+            sub.className = "text-[10px] md:text-xs tracking-[1em] mt-4 text-white opacity-70";
+
+            content.appendChild(title); content.appendChild(sub); overlay.appendChild(content); document.body.appendChild(overlay);
+
+            const centerX = window.innerWidth / 2;
+            const centerY = window.innerHeight / 2;
+            for(let i=0; i<20; i++) {
+                const p = document.createElement('div');
+                p.className = 'explosion-particle';
+                const size = Math.random() * 3 + 2;
+                p.style.width = p.style.height = `${size}px`;
+                p.style.background = color;
+                p.style.left = centerX + 'px';
+                p.style.top = centerY + 'px';
+                document.body.appendChild(p);
+                
+                const angle = Math.random() * Math.PI * 2;
+                const vel = Math.random() * 150 + 50;
+                p.animate([
+                    { transform: 'translate(0,0) scale(1)', opacity: 1 },
+                    { transform: `translate(${Math.cos(angle)*vel}px, ${Math.sin(angle)*vel}px) scale(0)`, opacity: 0 }
+                ], { duration: 800 }).onfinish = () => p.remove();
+            }
+            setTimeout(() => { overlay.style.transition = 'opacity 0.2s'; overlay.style.opacity = 0; setTimeout(() => overlay.remove(), 200); }, 1200);
+        }
+
+        function peekValue() {
+            if (queue.length === 0) { log("q.empty() == true", "error"); playSound('error'); return; }
+            const val = queue[0];
+            log(`q.front() -> "${val}"`, "success");
+            playSound('bling');
+            createExplosion(val, '#bc13fe');
+        }
+
+        function peekBack() {
+            if (queue.length === 0) { log("q.empty() == true", "error"); playSound('error'); return; }
+            const val = queue[queue.length - 1];
+            log(`q.back() -> "${val}"`, "success");
+            playSound('bling');
+            createExplosion(val, '#bc13fe');
+        }
+
+        function checkSize() {
+            log(`q.size() -> ${queue.length}`, "success");
+            playSound('bling');
+            createExplosion(queue.length.toString(), '#00f3ff');
+        }
+
+        function checkEmpty() {
+            playSound('bling');
+            const isEmpty = queue.length === 0;
+            const boolStr = isEmpty ? "TRUE" : "FALSE";
+            log(`q.empty() -> ${boolStr}`, isEmpty ? "warn" : "success");
+            if (isEmpty) { createExplosion("TRUE", '#ff00ff', true); } else { createExplosion("FALSE", '#00ff9f', true); }
+        }
+
+        function initMouseTrail() {
+            const canvas = document.getElementById('trail-canvas');
+            const ctx = canvas.getContext('2d');
+            let w, h, particles = [];
+            const resize = () => { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; };
+            window.addEventListener('resize', resize);
+            resize();
+
+            const addParticle = (x, y) => {
+                for(let i=0; i<2; i++) particles.push({
+                    x: x, y: y,
+                    vx: (Math.random()-0.5)*2, vy: (Math.random()-0.5)*2,
+                    life: 1, color: Math.random()>0.5 ? '#00f3ff' : '#bc13fe'
+                });
+            };
+            window.addEventListener('mousemove', e => addParticle(e.clientX, e.clientY));
+            window.addEventListener('touchmove', e => {
+                const touch = e.touches[0];
+                addParticle(touch.clientX, touch.clientY);
+            });
+
+            function loop() {
+                ctx.clearRect(0,0,w,h);
+                particles.forEach((p, i) => {
+                    p.x += p.vx; p.y += p.vy; p.life -= 0.04;
+                    ctx.fillStyle = p.color;
+                    ctx.globalAlpha = p.life;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, Math.PI*2); ctx.fill();
+                    if(p.life<=0) particles.splice(i,1);
+                });
+                requestAnimationFrame(loop);
+            }
+            loop();
+        }
+
+        window.onload = function() {
+            initMouseTrail();
+            const isMobile = window.innerWidth < 768;
+            tsParticles.load({
+                id: "tsparticles",
+                options: {
+                    background: { color: { value: "transparent" } },
+                    particles: {
+                        color: { value: "#00f3ff" },
+                        links: { color: "#bc13fe", distance: 150, enable: true, opacity: 0.2, width: 1 },
+                        move: { enable: true, speed: 1 },
+                        number: { value: isMobile ? 15 : 30 },
+                        opacity: { value: 0.5 },
+                        size: { value: 2 }
+                    }
+                }
+            });
+            queueContainer.innerHTML = '';
+            queueContainer.appendChild(emptyPlaceholder);
+        };
+    </script>
+</body>
+</html>

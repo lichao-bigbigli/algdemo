@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>地图寻路演示</title>
+  <!-- CSS Dependencies -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.4.1/semantic.css" />
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="./main.css" />
+</head>
+
+<body>
+  <!-- Canvas for Sparks -->
+  <canvas id="spark-canvas"></canvas>
+
+  <!-- Map Selection Modal -->
+  <div id="map-modal" class="custom-modal">
+    <div class="modal-content">
+      <h3 id="i18n_select_map">选择预设地图方案</h3>
+      <div id="map-list" class="map-grid"></div>
+      <button id="close-modal" class="ui primary button mini" style="width: 100%;">关闭</button>
+    </div>
+  </div>
+
+  <!-- Hero Selection Modal -->
+  <div id="hero-modal" class="custom-modal">
+    <div class="modal-content" style="max-width: 500px;">
+      <h3 id="i18n_select_hero">选择传奇角色障碍</h3>
+      <div id="hero-list" class="map-grid" style="grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));"></div>
+      <button id="close-hero-modal" class="ui primary button mini" style="width: 100%; margin-top: 15px;">关闭</button>
+    </div>
+  </div>
+
+  <div class="page-container">
+    <div class="main-layout">
+      <div class="column side setting">
+        <h1 id="i18n_title" style="margin: 0 0 15px 0; font-size: 1.25em; text-align: left; line-height: 1.2;">地图搜索算法演示
+        </h1>
+        <div id="board-size-setting">
+          <h4 id="i18n_board_size">网格大小</h4>
+          <div class="ui form">
+            <div class="inline fields" style="margin-bottom: 12px; flex-wrap: nowrap;">
+              <div class="field" style="margin-right: 5px;">
+                <input type="number" id="width_input" placeholder="W" value="30">
+              </div>
+              <div class="field">
+                <input type="number" id="height_input" placeholder="H" value="30">
+              </div>
+            </div>
+            <button id="apply_setting" class="ui primary button tiny" style="width: 100%;">部署重设</button>
+          </div>
+        </div>
+
+        <div class="radio_btn_group_div" style="margin-top: 20px;">
+          <p style="margin-bottom: 8px;"><strong id="i18n_selecting_mode">编辑模式</strong></p>
+          <div class="custom-control custom-radio">
+            <input type="radio" id="select_mode1" name="select_mode" class="custom-control-input" value="wall"
+              checked />
+            <label class="custom-control-label" for="select_mode1" id="i18n_wall">设为墙体</label>
+          </div>
+          <div class="custom-control custom-radio">
+            <input type="radio" id="select_mode2" name="select_mode" class="custom-control-input" value="clear" />
+            <label class="custom-control-label" for="select_mode2" id="i18n_clear">清除</label>
+          </div>
+          <div class="custom-control custom-radio">
+            <input type="radio" id="select_mode3" name="select_mode" class="custom-control-input" value="source" />
+            <label class="custom-control-label" for="select_mode3" id="i18n_source">起点</label>
+          </div>
+          <div class="custom-control custom-radio">
+            <input type="radio" id="select_mode4" name="select_mode" class="custom-control-input" value="target" />
+            <label class="custom-control-label" for="select_mode4" id="i18n_target">终点</label>
+          </div>
+        </div>
+
+        <div class="radio_btn_group_div">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <strong id="i18n_search_algo_label">算法选择</strong>
+            <div class="custom-control custom-switch" style="padding-left: 2.5rem;">
+              <input type="checkbox" class="custom-control-input" id="toggle_more_algos">
+              <label class="custom-control-label" for="toggle_more_algos"
+                style="font-size: 0.75em; color: var(--neon-magenta);"></label>
+            </div>
+          </div>
+
+          <div class="custom-control custom-radio">
+            <input type="radio" id="search_algo1" name="search_algo" class="custom-control-input" value="BFS" checked />
+            <label class="custom-control-label" for="search_algo1">BFS</label>
+          </div>
+
+          <div id="extra-algorithms-container" style="display: none;">
+            <div class="custom-control custom-radio">
+              <input type="radio" id="search_algo2" name="search_algo" class="custom-control-input" value="DFS" />
+              <label class="custom-control-label" for="search_algo2">DFS</label>
+            </div>
+            <div class="custom-control custom-radio" style="display: none;">
+              <input type="radio" id="search_algo3" name="search_algo" class="custom-control-input" value="A*" />
+              <label class="custom-control-label" for="search_algo3">A*</label>
+            </div>
+          </div>
+        </div>
+
+        <div id="control-button-group" style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; gap: 5px;">
+            <button id="random_btn" class="ui primary button tiny"
+              style="flex: 1; padding: 5px 2px; font-size: 0.85em;">随机地图</button>
+            <button id="cartoon_btn" class="ui primary button tiny"
+              style="flex: 1; padding: 5px 2px; font-size: 0.85em; display: none;">卡通人物</button>
+          </div>
+          <div style="display: flex; gap: 5px;">
+            <button id="classic_maps_btn" class="ui primary button tiny"
+              style="flex: 1; padding: 5px 2px; font-size: 0.85em;">默认地图</button>
+            <button id="clear_board" class="ui primary button tiny"
+              style="flex: 1; padding: 5px 2px; font-size: 0.85em;">全部清空</button>
+          </div>
+          <button id="start_search" class="ui primary button tiny">开始搜索</button>
+          <button id="step" class="ui primary button tiny" style="display: none;">手动步进</button>
+          <button id="animation" class="ui primary button tiny" style="display: none;">全自动执行</button>
+        </div>
+
+        <div class="slide-container" style="margin-top: 25px;">
+          <h4 id="i18n_speed">演示速度</h4>
+          <input type="range" min="1" max="100" value="50" id="simulator_speed" style="width: 100%;"><br />
+          <p><span id="i18n_frame_rate">帧率</span>: <span id="speed_display">50</span></p>
+        </div>
+
+        <div id="data-container">
+          <h4 id="i18n_log">运行记录</h4>
+          <div id="data-content" style="max-height: 150px; overflow-y: auto;"></div>
+        </div>
+      </div>
+
+      <div class="main-container column">
+        <div id="board-container">
+          <div id="board-wrapper">
+            <div id="board"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JS Scripts -->
+  <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML" async></script>
+  <script src="./constants.js"></script>
+  <script src="./helper_functions.js"></script>
+  <script src="./data_structure.js"></script>
+  <script src="./search.js"></script>
+  <script src="./main.js"></script>
+</body>
+
+</html>

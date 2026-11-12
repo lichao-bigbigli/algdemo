@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>单链表可视化 | 数据结构分析</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#00f5d4',
+                        secondary: '#7b2fff',
+                        accent: '#ff2d6b',
+                        neon: '#00e5ff',
+                        warn: '#ff9900',
+                        dark: {
+                            100: '#0d1b2a',
+                            200: '#091525',
+                            300: '#060f1a',
+                            400: '#040c15',
+                            500: '#020810'
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Share Tech Mono"', '"Courier New"', 'monospace'],
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'flicker': 'flicker 4s linear infinite',
+                        'scan': 'scan 6s linear infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #00f5d4;
+            --secondary: #7b2fff;
+            --accent: #ff2d6b;
+            --neon: #00e5ff;
+            --warn: #ff9900;
+            --dark1: #0d1b2a;
+            --dark2: #091525;
+            --dark3: #060f1a;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            background-color: #020810;
+            background-image:
+                linear-gradient(to right, rgba(0,245,212,0.03) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(0,245,212,0.03) 1px, transparent 1px);
+            background-size: 28px 28px;
+            font-family: 'Share Tech Mono', 'Courier New', monospace;
+            color: #a0c4cc;
+        }
+
+        /* 扫描线 */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0,229,255,0.012) 2px,
+                rgba(0,229,255,0.012) 4px
+            );
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        @keyframes flicker {
+            0%,19%,21%,23%,25%,54%,56%,100% { opacity:1; }
+            20%,24%,55% { opacity:.4; }
+        }
+        @keyframes scan {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100vh); }
+        }
+        @keyframes glow-pulse {
+            0%,100% { box-shadow: 0 0 8px var(--primary), 0 0 16px rgba(0,245,212,0.2); }
+            50% { box-shadow: 0 0 16px var(--primary), 0 0 32px rgba(0,245,212,0.4); }
+        }
+        @keyframes slide-in {
+            from { opacity:0; transform: translateX(-30px); }
+            to { opacity:1; transform: translateX(0); }
+        }
+        @keyframes node-appear {
+            from { opacity:0; transform: scale(0.5); }
+            to { opacity:1; transform: scale(1); }
+        }
+        @keyframes node-delete {
+            from { opacity:1; transform: scale(1) translateY(0); }
+            to { opacity:0; transform: scale(0.3) translateY(-40px); }
+        }
+        @keyframes arrow-flow {
+            0% { stroke-dashoffset: 20; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes traverse-glow {
+            0%,100% { filter: brightness(1); }
+            50% { filter: brightness(1.8) drop-shadow(0 0 12px var(--primary)); }
+        }
+        @keyframes log-in {
+            from { opacity:0; transform:translateX(10px); }
+            to { opacity:1; transform:translateX(0); }
+        }
+        @keyframes corner-flash {
+            0%,100% { border-color: rgba(0,245,212,0.3); }
+            50% { border-color: rgba(0,245,212,0.9); }
+        }
+
+        .card {
+            background: linear-gradient(135deg, rgba(13,27,42,0.95), rgba(6,15,26,0.98));
+            border: 1px solid rgba(0,245,212,0.2);
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 40px; height: 1px;
+            background: var(--primary);
+            box-shadow: 0 0 8px var(--primary);
+        }
+        .card::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 1px; height: 40px;
+            background: var(--primary);
+            box-shadow: 0 0 8px var(--primary);
+        }
+        .card-br::before {
+            content: '';
+            position: absolute;
+            bottom: 0; right: 0;
+            width: 30px; height: 1px;
+            background: rgba(0,245,212,0.4);
+        }
+
+        .card-title {
+            font-size: 11px;
+            letter-spacing: 4px;
+            color: var(--primary);
+            text-transform: uppercase;
+            text-shadow: 0 0 8px rgba(0,245,212,0.6);
+        }
+
+        .neon-btn {
+            background: transparent;
+            border: 1px solid;
+            font-family: 'Share Tech Mono', monospace;
+            letter-spacing: 2px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            padding: 8px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .neon-btn:hover { filter: brightness(1.4); }
+        .neon-btn:active { transform: scale(0.97); }
+
+        .btn-primary {
+            border-color: var(--primary);
+            color: var(--primary);
+            box-shadow: 0 0 8px rgba(0,245,212,0.2), inset 0 0 8px rgba(0,245,212,0.05);
+        }
+        .btn-primary:hover {
+            background: rgba(0,245,212,0.1);
+            box-shadow: 0 0 16px rgba(0,245,212,0.4), inset 0 0 12px rgba(0,245,212,0.1);
+        }
+        .btn-accent {
+            border-color: var(--accent);
+            color: var(--accent);
+            box-shadow: 0 0 8px rgba(255,45,107,0.2);
+        }
+        .btn-accent:hover { background: rgba(255,45,107,0.1); box-shadow: 0 0 16px rgba(255,45,107,0.4); }
+
+        .btn-secondary {
+            border-color: var(--secondary);
+            color: var(--secondary);
+            box-shadow: 0 0 8px rgba(123,47,255,0.2);
+        }
+        .btn-secondary:hover { background: rgba(123,47,255,0.1); box-shadow: 0 0 16px rgba(123,47,255,0.4); }
+
+        .btn-warn {
+            border-color: var(--warn);
+            color: var(--warn);
+            box-shadow: 0 0 8px rgba(255,153,0,0.2);
+        }
+        .btn-warn:hover { background: rgba(255,153,0,0.1); box-shadow: 0 0 16px rgba(255,153,0,0.4); }
+
+        .btn-disabled {
+            opacity: 0.3 !important;
+            cursor: not-allowed !important;
+            pointer-events: none;
+        }
+
+        .neon-input {
+            background: rgba(0,229,255,0.03);
+            border: 1px solid rgba(0,245,212,0.2);
+            color: var(--primary);
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 13px;
+            padding: 8px 12px;
+            outline: none;
+            transition: all 0.2s;
+            width: 100%;
+            letter-spacing: 1px;
+        }
+        .neon-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 12px rgba(0,245,212,0.25);
+        }
+        .neon-input::placeholder { color: rgba(0,245,212,0.25); }
+
+        .neon-range {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 3px;
+            background: rgba(0,245,212,0.15);
+            border-radius: 2px;
+            outline: none;
+            width: 100%;
+        }
+        .neon-range::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px; height: 14px;
+            border-radius: 50%;
+            background: var(--primary);
+            box-shadow: 0 0 8px var(--primary);
+            cursor: pointer;
+        }
+
+        .stat-box {
+            background: rgba(0,229,255,0.03);
+            border: 1px solid rgba(0,245,212,0.1);
+            padding: 10px 14px;
+            border-radius: 2px;
+            position: relative;
+        }
+
+        /* 链表节点 Canvas 样式 */
+        #listCanvas {
+            background: rgba(2,8,16,0.8);
+            border-radius: 2px;
+        }
+
+        /* 日志区域 */
+        .log-area {
+            height: 160px;
+            overflow-y: auto;
+            font-size: 11px;
+            line-height: 1.8;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(0,245,212,0.3) transparent;
+        }
+        .log-area::-webkit-scrollbar { width: 3px; }
+        .log-area::-webkit-scrollbar-track { background: transparent; }
+        .log-area::-webkit-scrollbar-thumb { background: rgba(0,245,212,0.3); }
+
+        .log-line {
+            animation: log-in 0.3s ease forwards;
+            display: flex;
+            gap: 10px;
+            padding: 1px 0;
+        }
+        .log-time { color: rgba(0,245,212,0.3); white-space: nowrap; }
+        .log-type-INFO { color: var(--neon); }
+        .log-type-SUCCESS { color: var(--primary); }
+        .log-type-WARN { color: var(--warn); }
+        .log-type-ERROR { color: var(--accent); }
+        .log-msg { color: rgba(160,196,204,0.7); }
+
+        /* 步骤徽章 */
+        .step-badge {
+            font-size: 10px;
+            letter-spacing: 2px;
+            padding: 3px 10px;
+            border: 1px solid;
+            display: inline-block;
+        }
+
+        /* 遍历序列项 */
+        .seq-item {
+            display: inline-block;
+            padding: 3px 10px;
+            border: 1px solid rgba(0,245,212,0.3);
+            font-size: 13px;
+            margin: 2px;
+            transition: all 0.3s;
+            color: var(--primary);
+        }
+        .seq-item.active {
+            background: rgba(0,245,212,0.15);
+            border-color: var(--primary);
+            box-shadow: 0 0 8px rgba(0,245,212,0.4);
+        }
+
+        /* 标题闪烁 */
+        .title-flicker { animation: flicker 8s linear infinite; }
+
+        /* 操作选项卡 */
+        .op-tab {
+            font-size: 10px;
+            letter-spacing: 2px;
+            padding: 5px 12px;
+            border: 1px solid rgba(0,245,212,0.15);
+            cursor: pointer;
+            color: rgba(0,245,212,0.4);
+            background: transparent;
+            font-family: 'Share Tech Mono', monospace;
+            transition: all 0.2s;
+        }
+        .op-tab.active {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: rgba(0,245,212,0.08);
+            box-shadow: 0 0 10px rgba(0,245,212,0.2);
+        }
+
+        /* 空状态 */
+        #canvasPlaceholder {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            pointer-events: none;
+        }
+        .placeholder-icon {
+            font-size: 48px;
+            color: rgba(0,245,212,0.15);
+            animation: pulse 3s infinite;
+        }
+        .placeholder-text {
+            font-size: 11px;
+            letter-spacing: 3px;
+            color: rgba(0,245,212,0.2);
+            text-transform: uppercase;
+        }
+
+        /* 操作说明 */
+        .op-desc {
+            font-size: 10px;
+            letter-spacing: 1px;
+            color: rgba(0,245,212,0.3);
+            line-height: 1.8;
+        }
+
+        /* 粒子背景 */
+        #particleBg {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            opacity: 0.25;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <!-- 粒子背景 -->
+    <canvas id="particleBg"></canvas>
+
+    <div class="relative z-10 container mx-auto px-4 py-8" style="max-width:1400px;">
+        <!-- 顶部标题栏 -->
+        <header class="mb-8">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <div style="font-size:10px;letter-spacing:5px;color:rgba(0,245,212,0.4);margin-bottom:6px;">
+                        ◈ CYBERLINK · DATA STRUCTURE LAB ◈
+                    </div>
+                    <h1 class="text-3xl font-bold title-flicker flex items-center gap-3" style="color:var(--primary);text-shadow:0 0 20px rgba(0,245,212,0.5);">
+                        <i class="fa fa-link" style="font-size:26px;"></i>
+                        单链表可视化
+                    </h1>
+                    <p class="op-desc mt-1" style="color:rgba(0,245,212,0.35);">
+                        交互式演示节点插入 · 删除 · 查找 · 遍历全过程
+                    </p>
+                </div>
+                <div class="card flex items-center gap-3 px-4 py-2">
+                    <span style="width:7px;height:7px;border-radius:50%;background:var(--primary);box-shadow:0 0 8px var(--primary);display:inline-block;animation:glow-pulse 2s infinite;"></span>
+                    <span style="font-size:10px;letter-spacing:3px;color:rgba(0,245,212,0.5);">MEMORY VISUALIZER v1.0</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- ===== 左侧控制面板 ===== -->
+            <div class="lg:col-span-4 space-y-5">
+
+                <!-- 数据输入 -->
+                <div class="card p-5 card-br">
+                    <div class="flex justify-between items-center mb-5">
+                        <div class="card-title"><i class="fa fa-terminal mr-2"></i>数据输入</div>
+                        <div style="width:28px;height:28px;border:1px solid rgba(0,245,212,0.2);display:flex;align-items:center;justify-content:center;color:rgba(0,245,212,0.5);font-size:12px;">
+                            <i class="fa fa-database"></i>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div style="font-size:9px;letter-spacing:3px;color:rgba(0,245,212,0.35);margin-bottom:6px;">NODE VALUE</div>
+                        <input type="text" id="nodeValue" class="neon-input" placeholder="输入节点数据..." maxlength="6">
+                    </div>
+
+                    <div class="mb-4" id="indexInputWrap">
+                        <div style="font-size:9px;letter-spacing:3px;color:rgba(0,245,212,0.35);margin-bottom:6px;">TARGET INDEX</div>
+                        <input type="number" id="indexValue" class="neon-input" placeholder="输入索引位置 (0~n)" min="0">
+                    </div>
+
+                    <!-- 操作选项卡 -->
+                    <div class="flex mb-4 gap-1">
+                        <button class="op-tab active" data-op="head">HEAD</button>
+                        <button class="op-tab" data-op="tail">TAIL</button>
+                        <button class="op-tab" data-op="index">INDEX</button>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-2">
+                        <button id="insertBtn" class="neon-btn btn-primary w-full">
+                            <i class="fa fa-plus-circle"></i> 插入节点
+                        </button>
+                    </div>
+
+                    <div class="mt-3 op-desc">
+                        <div id="opHint">▸ 将新节点插入至链表 <span style="color:var(--primary)">头部</span></div>
+                    </div>
+                </div>
+
+                <!-- 操作面板 -->
+                <div class="card p-5 card-br">
+                    <div class="flex justify-between items-center mb-5">
+                        <div class="card-title"><i class="fa fa-cogs mr-2"></i>链表操作</div>
+                        <div style="width:28px;height:28px;border:1px solid rgba(0,245,212,0.2);display:flex;align-items:center;justify-content:center;color:rgba(0,245,212,0.5);font-size:12px;">
+                            <i class="fa fa-wrench"></i>
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <button id="deleteHeadBtn" class="neon-btn btn-accent w-full">
+                            <i class="fa fa-times-circle"></i> 删除头节点
+                        </button>
+                        <button id="deleteTailBtn" class="neon-btn btn-accent w-full">
+                            <i class="fa fa-times-circle"></i> 删除尾节点
+                        </button>
+                        <div class="flex gap-2">
+                            <input type="number" id="deleteIndexVal" class="neon-input" placeholder="删除索引..." min="0" style="flex:1;">
+                            <button id="deleteIndexBtn" class="neon-btn btn-accent" style="white-space:nowrap;">
+                                <i class="fa fa-trash"></i> 按位删
+                            </button>
+                        </div>
+                        <div class="flex gap-2">
+                            <input type="text" id="searchVal" class="neon-input" placeholder="查找值..." style="flex:1;">
+                            <button id="searchBtn" class="neon-btn btn-secondary" style="white-space:nowrap;">
+                                <i class="fa fa-search"></i> 查找
+                            </button>
+                        </div>
+                        <button id="traverseBtn" class="neon-btn btn-warn w-full">
+                            <i class="fa fa-arrow-right"></i> 遍历链表
+                        </button>
+                        <button id="reverseBtn" class="neon-btn btn-secondary w-full">
+                            <i class="fa fa-exchange"></i> 反转链表
+                        </button>
+                        <button id="resetBtn" class="neon-btn w-full" style="border-color:rgba(100,100,150,0.4);color:rgba(150,150,200,0.6);">
+                            <i class="fa fa-undo"></i> 重置链表
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 遍历控制 -->
+                <div class="card p-5 card-br" id="traversalControls" style="display:none;">
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="card-title"><i class="fa fa-sliders mr-2"></i>遍历控制</div>
+                        <span id="currentStep" class="step-badge" style="border-color:var(--primary);color:var(--primary);">0/0</span>
+                    </div>
+                    <div class="flex gap-2 mb-4">
+                        <button id="prevStep" class="neon-btn btn-primary flex-1">
+                            <i class="fa fa-step-backward"></i> 上一步
+                        </button>
+                        <button id="playPauseBtn" class="neon-btn btn-warn flex-1">
+                            <i class="fa fa-play"></i> 播放
+                        </button>
+                        <button id="nextStep" class="neon-btn btn-primary flex-1">
+                            <i class="fa fa-step-forward"></i> 下一步
+                        </button>
+                    </div>
+                    <div>
+                        <div style="font-size:9px;letter-spacing:3px;color:rgba(0,245,212,0.35);margin-bottom:6px;">SPEED CONTROL</div>
+                        <input type="range" id="speedControl" class="neon-range" min="1" max="5" value="3">
+                        <div class="flex justify-between mt-1" style="font-size:9px;color:rgba(0,245,212,0.25);letter-spacing:1px;">
+                            <span>SLOW</span><span>FAST</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 统计信息 -->
+                <div class="card p-5 card-br">
+                    <div class="card-title mb-4"><i class="fa fa-bar-chart mr-2"></i>内存统计</div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="stat-box">
+                            <div style="font-size:9px;letter-spacing:2px;color:rgba(0,245,212,0.3);margin-bottom:4px;">LENGTH</div>
+                            <div id="statLength" style="font-size:22px;color:var(--primary);text-shadow:0 0 8px rgba(0,245,212,0.5);">0</div>
+                        </div>
+                        <div class="stat-box">
+                            <div style="font-size:9px;letter-spacing:2px;color:rgba(0,245,212,0.3);margin-bottom:4px;">ALLOC BYTES</div>
+                            <div id="statBytes" style="font-size:22px;color:var(--neon);text-shadow:0 0 8px rgba(0,229,255,0.5);">0B</div>
+                        </div>
+                        <div class="stat-box">
+                            <div style="font-size:9px;letter-spacing:2px;color:rgba(0,245,212,0.3);margin-bottom:4px;">HEAD ADDR</div>
+                            <div id="statHead" style="font-size:12px;color:var(--warn);letter-spacing:1px;">NULL</div>
+                        </div>
+                        <div class="stat-box">
+                            <div style="font-size:9px;letter-spacing:2px;color:rgba(0,245,212,0.3);margin-bottom:4px;">TAIL ADDR</div>
+                            <div id="statTail" style="font-size:12px;color:var(--warn);letter-spacing:1px;">NULL</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== 右侧可视化区域 ===== -->
+            <div class="lg:col-span-8 space-y-5">
+                <!-- 主可视化 Canvas -->
+                <div class="card p-5 card-br">
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="card-title"><i class="fa fa-eye mr-2"></i>链表结构可视化</div>
+                        <div id="opTypeTag" style="display:none;font-size:10px;letter-spacing:2px;padding:3px 10px;border:1px solid var(--primary);color:var(--primary);">遍历</div>
+                    </div>
+                    <div style="position:relative;height:320px;">
+                        <canvas id="listCanvas" style="width:100%;height:100%;"></canvas>
+                        <div id="canvasPlaceholder">
+                            <div class="placeholder-icon"><i class="fa fa-link"></i></div>
+                            <div class="placeholder-text">链表为空 — 请插入节点</div>
+                            <div class="op-desc" style="margin-top:4px;">点击左侧「插入节点」开始构建</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 遍历序列 -->
+                <div class="card p-5 card-br" id="traversalResult" style="display:none;">
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="card-title"><i class="fa fa-list-ol mr-2"></i>访问序列</div>
+                        <div style="font-size:9px;letter-spacing:2px;color:rgba(0,245,212,0.3);">HEAD → TAIL</div>
+                    </div>
+                    <div id="traversalSequence" style="min-height:36px;padding:4px 0;border-left:2px solid rgba(0,245,212,0.2);padding-left:12px;"></div>
+                </div>
+
+                <!-- 日志终端 -->
+                <div class="card card-br" style="overflow:hidden;">
+                    <div style="padding:8px 16px;border-bottom:1px solid rgba(0,245,212,0.1);display:flex;align-items:center;gap:8px;">
+                        <span style="width:6px;height:6px;border-radius:50%;background:var(--primary);display:inline-block;animation:glow-pulse 2s infinite;"></span>
+                        <span style="font-size:9px;letter-spacing:4px;color:rgba(0,245,212,0.4);">SYSTEM LOG TERMINAL</span>
+                        <span id="logCount" style="margin-left:auto;font-size:9px;color:rgba(0,245,212,0.25);">0 ENTRIES</span>
+                    </div>
+                    <div id="logArea" class="log-area" style="padding:10px 14px;"></div>
+                </div>
+
+                <!-- 代码说明卡片 -->
+                <div class="card p-5 card-br">
+                    <div class="card-title mb-4"><i class="fa fa-code mr-2"></i>C++ 核心结构</div>
+                    <pre style="font-size:11px;line-height:1.8;color:rgba(0,245,212,0.4);overflow-x:auto;"><span style="color:rgba(123,47,255,0.8);">struct</span> <span style="color:var(--neon);">ListNode</span> {
+    <span style="color:rgba(123,47,255,0.8);">int</span>       <span style="color:var(--warn);">data</span>;      <span style="color:rgba(0,245,212,0.2);">// 数据域</span>
+    ListNode <span style="color:var(--accent);">*next</span>;     <span style="color:rgba(0,245,212,0.2);">// 指针域 → 下一节点</span>
+    <span style="color:var(--neon);">ListNode</span>(<span style="color:rgba(123,47,255,0.8);">int</span> x) : <span style="color:var(--warn);">data</span>(x), <span style="color:var(--accent);">next</span>(<span style="color:rgba(123,47,255,0.8);">nullptr</span>) {}
+};</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+// ============ 粒子背景 ============
+(function() {
+    const canvas = document.getElementById('particleBg');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    resize();
+    window.addEventListener('resize', resize);
+    for (let i = 0; i < 70; i++) {
+        particles.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            r: Math.random() * 1.2 + 0.3,
+            sx: (Math.random() - 0.5) * 0.2,
+            sy: (Math.random() - 0.5) * 0.2,
+            c: `rgba(${Math.floor(Math.random()*60)},${Math.floor(Math.random()*180+60)},${Math.floor(Math.random()*80+160)},0.6)`
+        });
+    }
+    let mx = 0, my = 0;
+    document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
+    function anim() {
+        requestAnimationFrame(anim);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        particles.forEach(p => {
+            p.x += p.sx; p.y += p.sy;
+            if (p.x < 0) p.x = canvas.width;
+            if (p.x > canvas.width) p.x = 0;
+            if (p.y < 0) p.y = canvas.height;
+            if (p.y > canvas.height) p.y = 0;
+            const dx = p.x - mx, dy = p.y - my, d = Math.sqrt(dx*dx+dy*dy);
+            if (d < 120) { p.x += dx * 0.008; p.y += dy * 0.008; }
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+            ctx.fillStyle = p.c; ctx.fill();
+        });
+        for (let i = 0; i < particles.length; i++)
+            for (let j = i+1; j < particles.length; j++) {
+                const dx = particles[i].x - particles[j].x, dy = particles[i].y - particles[j].y;
+                const d = Math.sqrt(dx*dx+dy*dy);
+                if (d < 90) {
+                    ctx.beginPath();
+                    ctx.strokeStyle = `rgba(0,245,212,${0.1*(1-d/90)})`;
+                    ctx.lineWidth = 0.5;
+                    ctx.moveTo(particles[i].x, particles[i].y);
+                    ctx.lineTo(particles[j].x, particles[j].y);
+                    ctx.stroke();
+                }
+            }
+    }
+    anim();
+})();
+
+// ============ 链表数据结构 ============
+class ListNode {
+    constructor(value) {
+        this.value = value;
+        this.id = Math.random().toString(36).slice(2,8).toUpperCase();
+        this.addr = '0x' + Math.floor(Math.random()*0xFFFFFF).toString(16).padStart(6,'0').toUpperCase();
+    }
+}
+
+class LinkedList {
+    constructor() { this.nodes = []; }
+    get length() { return this.nodes.length; }
+    get head() { return this.nodes[0] || null; }
+    get tail() { return this.nodes[this.nodes.length-1] || null; }
+    insertHead(val) { this.nodes.unshift(new ListNode(val)); }
+    insertTail(val) { this.nodes.push(new ListNode(val)); }
+    insertAt(idx, val) {
+        idx = Math.max(0, Math.min(idx, this.nodes.length));
+        this.nodes.splice(idx, 0, new ListNode(val));
+    }
+    deleteHead() { return this.nodes.length ? this.nodes.shift() : null; }
+    deleteTail() { return this.nodes.length ? this.nodes.pop() : null; }
+    deleteAt(idx) {
+        if (idx < 0 || idx >= this.nodes.length) return null;
+        return this.nodes.splice(idx, 1)[0];
+    }
+    search(val) {
+        return this.nodes.map((n,i) => n.value === String(val) ? i : -1).filter(i=>i>=0);
+    }
+    reverse() { this.nodes.reverse(); }
+    clear() { this.nodes = []; }
+}
+
+// ============ 日志系统 ============
+let logEntries = 0;
+function addLog(msg, type='INFO') {
+    const area = document.getElementById('logArea');
+    const now = new Date();
+    const t = [now.getHours(),now.getMinutes(),now.getSeconds()].map(x=>String(x).padStart(2,'0')).join(':');
+    const div = document.createElement('div');
+    div.className = 'log-line';
+    div.innerHTML = `<span class="log-time">${t}</span><span class="log-type-${type}">[${type}]</span><span class="log-msg">${msg}</span>`;
+    area.appendChild(div);
+    area.scrollTop = area.scrollHeight;
+    logEntries++;
+    document.getElementById('logCount').textContent = logEntries + ' ENTRIES';
+    // 保留最近50条
+    while (area.children.length > 50) area.removeChild(area.firstChild);
+}
+
+// ============ Canvas 渲染器 ============
+class ListRenderer {
+    constructor(canvasId) {
+        this.canvas = document.getElementById(canvasId);
+        this.ctx = this.canvas.getContext('2d');
+        this.list = new LinkedList();
+        this.highlightedIndices = new Set();
+        this.foundIndices = new Set();
+        this.traversalSteps = [];
+        this.currentStep = 0;
+        this.isPlaying = false;
+        this.playTimer = null;
+        this.speed = 3;
+        this.deletingIdx = -1;
+        this.nodeAnim = {}; // id -> {scale, alpha}
+
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+    }
+
+    resize() {
+        const c = this.canvas.parentElement;
+        this.canvas.width = c.clientWidth * window.devicePixelRatio;
+        this.canvas.height = c.clientHeight * window.devicePixelRatio;
+        this.canvas.style.width = c.clientWidth + 'px';
+        this.canvas.style.height = c.clientHeight + 'px';
+        this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        this.W = c.clientWidth;
+        this.H = c.clientHeight;
+        this.draw();
+    }
+
+    draw() {
+        const ctx = this.ctx;
+        const W = this.W, H = this.H;
+        ctx.clearRect(0, 0, W, H);
+
+        const nodes = this.list.nodes;
+        if (!nodes.length) {
+            document.getElementById('canvasPlaceholder').style.display = 'flex';
+            this.updateStats();
+            return;
+        }
+        document.getElementById('canvasPlaceholder').style.display = 'none';
+
+        // 布局计算
+        const NODE_W = 110, NODE_H = 70, ARROW_W = 44, NULL_W = 36;
+        const ROWS_PER_ROW = Math.floor((W - 20) / (NODE_W + ARROW_W));
+        const rowCount = Math.ceil(nodes.length / ROWS_PER_ROW);
+        const totalH = rowCount * (NODE_H + 50);
+        const startY = Math.max(30, (H - totalH) / 2 + 10);
+
+        nodes.forEach((node, i) => {
+            const row = Math.floor(i / ROWS_PER_ROW);
+            const col = i % ROWS_PER_ROW;
+            const revRow = row % 2 === 1; // 蛇形布局
+
+            const rowNodes = Math.min(ROWS_PER_ROW, nodes.length - row * ROWS_PER_ROW);
+            const totalRowW = rowNodes * NODE_W + (rowNodes - 1) * ARROW_W + (i === nodes.length-1 ? NULL_W : 0);
+            const startX = (W - totalRowW) / 2;
+
+            let x, y;
+            if (!revRow) {
+                x = startX + col * (NODE_W + ARROW_W);
+            } else {
+                x = startX + (rowNodes - 1 - col) * (NODE_W + ARROW_W);
+            }
+            y = startY + row * (NODE_H + 50);
+
+            node._x = x;
+            node._y = y;
+            node._row = row;
+            node._col = col;
+            node._revRow = revRow;
+        });
+
+        // 绘制行间连线（蛇形折角）
+        for (let row = 0; row < Math.floor(nodes.length / ROWS_PER_ROW); row++) {
+            const lastInRow = (row + 1) * ROWS_PER_ROW - 1;
+            if (lastInRow >= nodes.length) continue;
+            const lastNode = nodes[lastInRow];
+            const nextNode = nodes[lastInRow + 1];
+            if (!lastNode || !nextNode) continue;
+
+            const x1 = lastNode._x + NODE_W;
+            const y1 = lastNode._y + NODE_H / 2;
+            const x2 = nextNode._x + NODE_W;
+            const y2 = nextNode._y + NODE_H / 2;
+
+            ctx.save();
+            ctx.strokeStyle = 'rgba(0,245,212,0.25)';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x1 + 10, y1);
+            ctx.lineTo(x1 + 10, y2);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // 绘制节点和行内箭头
+        nodes.forEach((node, i) => {
+            const isHighlighted = this.highlightedIndices.has(i);
+            const isFound = this.foundIndices.has(i);
+            const isHead = i === 0;
+            const isTail = i === nodes.length - 1;
+            const isDeleting = i === this.deletingIdx;
+
+            const x = node._x, y = node._y;
+            const nextNode = nodes[i + 1];
+
+            // 绘制行内箭头
+            if (nextNode && nextNode._row === node._row) {
+                const ax = x + NODE_W, ay = y + NODE_H / 2;
+                const ex = nextNode._x, ey = nextNode._y + NODE_H / 2;
+                this.drawArrow(ctx, ax, ay, ex, ey, isHighlighted);
+            }
+
+            // 最后一个节点：NULL 符号
+            if (isTail) {
+                const nx = x + NODE_W + 6, ny = y + NODE_H / 2;
+                this.drawNull(ctx, nx, ny);
+            }
+
+            // 绘制节点主体
+            this.drawNode(ctx, node, x, y, NODE_W, NODE_H, {
+                isHead, isTail, isHighlighted, isFound, isDeleting, index: i
+            });
+        });
+
+        this.updateStats();
+    }
+
+    drawNode(ctx, node, x, y, W, H, opts) {
+        const { isHead, isTail, isHighlighted, isFound, isDeleting, index } = opts;
+
+        const color = isFound ? '#7b2fff'
+                    : isHighlighted ? '#00f5d4'
+                    : 'rgba(0,100,130,0.6)';
+        const borderColor = isFound ? '#7b2fff'
+                          : isHighlighted ? '#00f5d4'
+                          : 'rgba(0,245,212,0.15)';
+        const alpha = isDeleting ? 0.2 : 1;
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+
+        // 背景
+        const grad = ctx.createLinearGradient(x, y, x+W, y+H);
+        grad.addColorStop(0, isHighlighted ? 'rgba(0,245,212,0.12)' : isFound ? 'rgba(123,47,255,0.15)' : 'rgba(13,27,42,0.95)');
+        grad.addColorStop(1, 'rgba(6,15,26,0.98)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(x, y, W, H);
+
+        // 边框
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = isHighlighted || isFound ? 1.5 : 1;
+        ctx.strokeRect(x, y, W, H);
+
+        // 发光效果
+        if (isHighlighted || isFound) {
+            ctx.shadowColor = isFound ? '#7b2fff' : '#00f5d4';
+            ctx.shadowBlur = 16;
+            ctx.strokeRect(x, y, W, H);
+            ctx.shadowBlur = 0;
+        }
+
+        // 切角装饰
+        ctx.fillStyle = isHighlighted ? 'rgba(0,245,212,0.6)' : isFound ? 'rgba(123,47,255,0.5)' : 'rgba(0,245,212,0.15)';
+        ctx.beginPath();
+        ctx.moveTo(x + W - 10, y); ctx.lineTo(x+W, y); ctx.lineTo(x+W, y+10); ctx.closePath();
+        ctx.fill();
+
+        // 分割线
+        ctx.strokeStyle = isHighlighted ? 'rgba(0,245,212,0.3)' : 'rgba(0,245,212,0.08)';
+        ctx.lineWidth = 0.8;
+        ctx.beginPath(); ctx.moveTo(x, y + H*0.58); ctx.lineTo(x+W, y+H*0.58); ctx.stroke();
+
+        // 数据值
+        ctx.font = `bold 18px "Share Tech Mono", monospace`;
+        ctx.fillStyle = isHighlighted ? '#00f5d4' : isFound ? '#7b2fff' : '#00aacc';
+        if (isHighlighted || isFound) {
+            ctx.shadowColor = isHighlighted ? '#00f5d4' : '#7b2fff';
+            ctx.shadowBlur = 10;
+        }
+        ctx.textAlign = 'center';
+        ctx.fillText(String(node.value).slice(0,6), x + W/2, y + H*0.38);
+        ctx.shadowBlur = 0;
+
+        // DATA 标签
+        ctx.font = `9px "Share Tech Mono", monospace`;
+        ctx.fillStyle = 'rgba(0,245,212,0.25)';
+        ctx.fillText('DATA', x + W/2, y + 13);
+
+        // 指针地址
+        ctx.font = `9px "Share Tech Mono", monospace`;
+        ctx.fillStyle = 'rgba(255,153,0,0.5)';
+        ctx.fillText('NEXT →', x + W/2 - 14, y + H*0.72);
+        ctx.fillStyle = 'rgba(255,153,0,0.7)';
+        const nextAddr = this.list.nodes[index+1] ? this.list.nodes[index+1].addr : 'NULL';
+        ctx.fillText(nextAddr, x + W/2, y + H*0.88);
+
+        // HEAD/TAIL 徽章
+        if (isHead || isTail) {
+            const badge = isHead ? 'HEAD' : 'TAIL';
+            const bColor = isHead ? '#ff9900' : '#cc00ff';
+            ctx.font = `bold 9px "Share Tech Mono", monospace`;
+            ctx.fillStyle = bColor;
+            ctx.shadowColor = bColor;
+            ctx.shadowBlur = 8;
+            ctx.fillText('◈ '+badge, x + W/2, y - 6);
+            ctx.shadowBlur = 0;
+        }
+
+        // 索引
+        ctx.font = `9px "Share Tech Mono", monospace`;
+        ctx.fillStyle = 'rgba(0,245,212,0.2)';
+        ctx.textAlign = 'left';
+        ctx.fillText(`[${String(index).padStart(2,'0')}]`, x+4, y+11);
+
+        ctx.restore();
+    }
+
+    drawArrow(ctx, x1, y1, x2, y2, glow=false) {
+        ctx.save();
+        ctx.strokeStyle = glow ? 'rgba(0,245,212,0.8)' : 'rgba(0,245,212,0.25)';
+        ctx.lineWidth = glow ? 2 : 1.2;
+        if (glow) { ctx.shadowColor = '#00f5d4'; ctx.shadowBlur = 8; }
+        ctx.setLineDash([3,3]);
+        ctx.beginPath();
+        ctx.moveTo(x1, y1); ctx.lineTo(x2, y1);
+        ctx.stroke();
+        // 箭头头
+        ctx.setLineDash([]);
+        ctx.fillStyle = glow ? '#00f5d4' : 'rgba(0,245,212,0.4)';
+        ctx.beginPath();
+        ctx.moveTo(x2, y2); ctx.lineTo(x2-8, y2-4); ctx.lineTo(x2-8, y2+4);
+        ctx.closePath(); ctx.fill();
+        ctx.restore();
+    }
+
+    drawNull(ctx, x, y) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,45,107,0.4)';
+        ctx.lineWidth = 1;
+        ctx.fillStyle = 'rgba(255,45,107,0.08)';
+        ctx.fillRect(x, y-10, 34, 20);
+        ctx.strokeRect(x, y-10, 34, 20);
+        ctx.font = `bold 9px "Share Tech Mono", monospace`;
+        ctx.fillStyle = 'rgba(255,45,107,0.7)';
+        ctx.textAlign = 'left';
+        ctx.fillText('NULL', x+5, y+4);
+        ctx.restore();
+    }
+
+    updateStats() {
+        const l = this.list;
+        document.getElementById('statLength').textContent = l.length;
+        document.getElementById('statBytes').textContent = l.length > 0 ? l.length*16+'B' : '0B';
+        document.getElementById('statHead').textContent = l.head ? l.head.addr : 'NULL';
+        document.getElementById('statTail').textContent = l.tail ? l.tail.addr : 'NULL';
+    }
+
+    // --- 操作方法 ---
+    insertHead(val) {
+        this.list.insertHead(val);
+        this.highlightedIndices.clear(); this.foundIndices.clear();
+        this.draw();
+        addLog(`ALLOC node[${this.list.head.addr}] val="${val}" → INSERT HEAD`, 'SUCCESS');
+    }
+    insertTail(val) {
+        this.list.insertTail(val);
+        this.highlightedIndices.clear(); this.foundIndices.clear();
+        this.draw();
+        addLog(`ALLOC node[${this.list.tail.addr}] val="${val}" → INSERT TAIL`, 'SUCCESS');
+    }
+    insertAt(idx, val) {
+        this.list.insertAt(idx, val);
+        this.highlightedIndices.clear(); this.foundIndices.clear();
+        this.draw();
+        addLog(`ALLOC node val="${val}" → INSERT AT[${idx}]`, 'SUCCESS');
+    }
+
+    async deleteAt(idx) {
+        if (this.list.length === 0) { addLog('链表为空，无法删除', 'ERROR'); return; }
+        if (idx < 0 || idx >= this.list.length) { addLog(`索引 ${idx} 越界`, 'ERROR'); return; }
+        const node = this.list.nodes[idx];
+        addLog(`FREE node[${node.addr}] AT[${idx}] val="${node.value}" → UNLINKING...`, 'WARN');
+        this.deletingIdx = idx; this.draw();
+        await new Promise(r => setTimeout(r, 400));
+        this.list.deleteAt(idx);
+        this.deletingIdx = -1;
+        this.highlightedIndices.clear(); this.foundIndices.clear();
+        this.draw();
+        addLog(`NODE[${node.addr}] FREED — POINTERS UPDATED`, 'INFO');
+    }
+
+    async search(val) {
+        this.highlightedIndices.clear(); this.foundIndices.clear();
+        const found = [];
+        addLog(`SEARCH val="${val}" → TRAVERSING...`, 'INFO');
+        this.startTraversal('search', val);
+    }
+
+    startTraversal(type, searchVal) {
+        this.stopPlay();
+        this.highlightedIndices.clear(); this.foundIndices.clear();
+        this.traversalSteps = this.list.nodes.map((n,i) => ({ idx: i, node: n }));
+        this.currentStep = 0;
+        this._traversalType = type;
+        this._searchVal = searchVal;
+
+        if (this.list.length === 0) { addLog('链表为空，无法遍历', 'ERROR'); return; }
+
+        document.getElementById('traversalControls').style.display = 'block';
+        document.getElementById('opTypeTag').style.display = 'inline-block';
+        document.getElementById('opTypeTag').textContent = type === 'search' ? '查 找' : '遍 历';
+
+        if (type !== 'search') {
+            document.getElementById('traversalResult').style.display = 'block';
+            document.getElementById('traversalSequence').innerHTML = '';
+        }
+        this.updateStepUI();
+        this.draw();
+        addLog(`TRAVERSAL START — ${this.list.length} NODES`, 'INFO');
+    }
+
+    applyStep(step) {
+        this.highlightedIndices.clear();
+        if (!step) return;
+        this.highlightedIndices.add(step.idx);
+        if (this._traversalType === 'search') {
+            if (String(step.node.value) === String(this._searchVal)) {
+                this.foundIndices.add(step.idx);
+            }
+        } else {
+            const seqEl = document.getElementById('traversalSequence');
+            let span = document.getElementById(`seq-${step.idx}`);
+            if (!span) {
+                span = document.createElement('span');
+                span.id = `seq-${step.idx}`;
+                span.className = 'seq-item';
+                span.textContent = step.node.value;
+                seqEl.appendChild(span);
+            }
+            span.classList.add('active');
+        }
+        this.draw();
+        document.getElementById('currentStep').textContent = `${this.currentStep+1}/${this.traversalSteps.length}`;
+    }
+
+    nextStep() {
+        if (this.currentStep < this.traversalSteps.length) {
+            this.applyStep(this.traversalSteps[this.currentStep]);
+            addLog(`VISIT [${this.currentStep}] node val="${this.traversalSteps[this.currentStep].node.value}"`, 'INFO');
+            this.currentStep++;
+        }
+        if (this.currentStep >= this.traversalSteps.length) {
+            this.stopPlay();
+            if (this._traversalType === 'search') {
+                if (this.foundIndices.size) {
+                    addLog(`SEARCH COMPLETE — FOUND at index [${[...this.foundIndices].join(',')}]`, 'SUCCESS');
+                } else {
+                    addLog(`SEARCH COMPLETE — NOT FOUND`, 'WARN');
+                }
+            } else {
+                addLog('TRAVERSAL COMPLETE — ALL NODES VISITED', 'SUCCESS');
+            }
+        }
+    }
+
+    prevStep() {
+        if (this.currentStep > 0) {
+            this.currentStep--;
+            this.highlightedIndices.clear();
+            this.foundIndices.clear();
+            document.getElementById('traversalSequence').innerHTML = '';
+            for (let i = 0; i < this.currentStep; i++) this.applyStep(this.traversalSteps[i]);
+            this.draw();
+        }
+    }
+
+    playTraversal() {
+        if (this.currentStep >= this.traversalSteps.length) return;
+        this.isPlaying = true;
+        document.getElementById('playPauseBtn').innerHTML = '<i class="fa fa-pause"></i> 暂停';
+        const delay = [1200,900,600,350,150][this.speed-1];
+        this.playTimer = setInterval(() => {
+            if (this.currentStep >= this.traversalSteps.length) { this.stopPlay(); return; }
+            this.nextStep();
+        }, delay);
+    }
+
+    stopPlay() {
+        this.isPlaying = false;
+        clearInterval(this.playTimer);
+        document.getElementById('playPauseBtn').innerHTML = '<i class="fa fa-play"></i> 播放';
+    }
+
+    updateStepUI() {
+        document.getElementById('currentStep').textContent = `0/${this.traversalSteps.length}`;
+    }
+
+    reverse() {
+        this.list.reverse();
+        this.highlightedIndices.clear(); this.foundIndices.clear();
+        this.draw();
+        addLog('REVERSE — 链表已反转，所有 next 指针更新', 'SUCCESS');
+    }
+
+    reset() {
+        this.stopPlay();
+        this.list.clear();
+        this.highlightedIndices.clear();
+        this.foundIndices.clear();
+        this.traversalSteps = [];
+        this.currentStep = 0;
+        document.getElementById('traversalControls').style.display = 'none';
+        document.getElementById('traversalResult').style.display = 'none';
+        document.getElementById('opTypeTag').style.display = 'none';
+        document.getElementById('traversalSequence').innerHTML = '';
+        this.draw();
+        addLog('DEALLOC ALL — 链表已清空，内存释放', 'WARN');
+    }
+}
+
+// ============ 初始化 ============
+document.addEventListener('DOMContentLoaded', () => {
+    const renderer = new ListRenderer('listCanvas');
+    let currentOp = 'head';
+
+    // 日志初始化
+    addLog('SYSTEM BOOT — CYBERLINK MEMORY VISUALIZER READY', 'INFO');
+    addLog('AWAITING USER INPUT...', 'SUCCESS');
+
+    // 操作选项卡
+    document.querySelectorAll('.op-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.op-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            currentOp = tab.dataset.op;
+            const hints = {
+                head: '将新节点插入至链表 <span style="color:var(--primary)">头部</span>',
+                tail: '将新节点插入至链表 <span style="color:var(--primary)">尾部</span>',
+                index: '将新节点插入至指定 <span style="color:var(--primary)">索引位置</span>'
+            };
+            document.getElementById('opHint').innerHTML = '▸ ' + hints[currentOp];
+            document.getElementById('indexInputWrap').style.display = currentOp === 'index' ? 'block' : 'none';
+        });
+    });
+    document.getElementById('indexInputWrap').style.display = 'none';
+
+    // 插入节点
+    document.getElementById('insertBtn').addEventListener('click', () => {
+        const val = document.getElementById('nodeValue').value.trim();
+        if (!val) { addLog('ERROR — 节点值不能为空', 'ERROR'); return; }
+        if (currentOp === 'head') renderer.insertHead(val);
+        else if (currentOp === 'tail') renderer.insertTail(val);
+        else {
+            const idx = parseInt(document.getElementById('indexValue').value);
+            if (isNaN(idx) || idx < 0) { addLog('ERROR — 无效的索引', 'ERROR'); return; }
+            renderer.insertAt(idx, val);
+        }
+        document.getElementById('nodeValue').value = '';
+    });
+
+    // 键盘回车
+    document.getElementById('nodeValue').addEventListener('keydown', e => {
+        if (e.key === 'Enter') document.getElementById('insertBtn').click();
+    });
+
+    // 删除头
+    document.getElementById('deleteHeadBtn').addEventListener('click', () => {
+        if (!renderer.list.length) { addLog('链表为空', 'ERROR'); return; }
+        renderer.deleteAt(0);
+    });
+
+    // 删除尾
+    document.getElementById('deleteTailBtn').addEventListener('click', () => {
+        if (!renderer.list.length) { addLog('链表为空', 'ERROR'); return; }
+        renderer.deleteAt(renderer.list.length - 1);
+    });
+
+    // 按位删除
+    document.getElementById('deleteIndexBtn').addEventListener('click', () => {
+        const idx = parseInt(document.getElementById('deleteIndexVal').value);
+        if (isNaN(idx)) { addLog('ERROR — 请输入有效索引', 'ERROR'); return; }
+        renderer.deleteAt(idx);
+    });
+
+    // 查找
+    document.getElementById('searchBtn').addEventListener('click', () => {
+        const val = document.getElementById('searchVal').value.trim();
+        if (!val) { addLog('ERROR — 查找值不能为空', 'ERROR'); return; }
+        renderer.search(val);
+    });
+
+    // 遍历
+    document.getElementById('traverseBtn').addEventListener('click', () => {
+        if (!renderer.list.length) { addLog('链表为空', 'ERROR'); return; }
+        renderer.startTraversal('traverse');
+    });
+
+    // 反转
+    document.getElementById('reverseBtn').addEventListener('click', () => {
+        if (!renderer.list.length) { addLog('链表为空', 'ERROR'); return; }
+        renderer.reverse();
+    });
+
+    // 重置
+    document.getElementById('resetBtn').addEventListener('click', () => renderer.reset());
+
+    // 遍历控制
+    document.getElementById('prevStep').addEventListener('click', () => renderer.prevStep());
+    document.getElementById('nextStep').addEventListener('click', () => renderer.nextStep());
+    document.getElementById('playPauseBtn').addEventListener('click', () => {
+        if (renderer.isPlaying) renderer.stopPlay();
+        else renderer.playTraversal();
+    });
+    document.getElementById('speedControl').addEventListener('input', e => {
+        renderer.speed = parseInt(e.target.value);
+    });
+
+    // 预置示例数据
+    setTimeout(() => {
+        ['42','17','88','23','65'].forEach(v => renderer.list.insertTail(v));
+        renderer.draw();
+        addLog('EXAMPLE DATA LOADED — 5 nodes initialized', 'INFO');
+    }, 300);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>算法和数据结构 演示导航</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        // Tailwind 赛博朋克主题配置
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        cyberPink: '#ff2a6d',
+                        cyberCyan: '#05d9e8',
+                        cyberPurple: '#d300c5',
+                        cyberBlack: '#0d0221',
+                        cyberGray: '#1a1736',
+                        cyberNeon: '#79ffe1',
+                    },
+                    fontFamily: {
+                        cyber: ['Orbitron', 'sans-serif', 'system-ui'],
+                    },
+                    boxShadow: {
+                        'neon-pink': '0 0 5px #ff2a6d, 0 0 20px rgba(255, 42, 109, 0.3)',
+                        'neon-cyan': '0 0 5px #05d9e8, 0 0 20px rgba(5, 217, 232, 0.3)',
+                        'neon-purple': '0 0 5px #d300c5, 0 0 20px rgba(211, 0, 197, 0.3)',
+                    }
+                }
+            }
+        }
+    </script>
+    <!--百度统计-->
+    <script>
+        var _hmt = _hmt || [];
+        (function() {
+        var hm = document.createElement("script");
+        hm.src = "https://hm.baidu.com/hm.js?4f36b5ab6d721f6b5e2349f738a14227";
+        var s = document.getElementsByTagName("script")[0]; 
+        s.parentNode.insertBefore(hm, s);
+        })();
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .cyber-bg {
+                background-image: 
+                    linear-gradient(rgba(26, 23, 54, 0.8) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(26, 23, 54, 0.8) 1px, transparent 1px);
+                background-size: 20px 20px;
+            }
+        }
+    </style>
+    <!-- 引入赛博朋克风格字体 -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* 侧边栏样式 */
+        aside {
+            width: 280px;
+            background: rgba(13, 2, 33, 0.95);
+            border-right: 1px solid rgba(5, 217, 232, 0.2);
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+        }
+        
+        .sidebar-header {
+            padding: 2rem 1.5rem;
+            border-bottom: 1px solid rgba(5, 217, 232, 0.2);
+        }
+        
+        .avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 2px solid #05d9e8;
+            box-shadow: 0 0 20px rgba(5, 217, 232, 0.3);
+            margin-bottom: 1rem;
+        }
+        
+        .user-info {
+            margin-bottom: 1rem;
+        }
+        
+        .user-name {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #79ffe1;
+            text-shadow: 0 0 10px rgba(121, 255, 225, 0.5);
+            margin-bottom: 0.25rem;
+        }
+        
+        .user-role {
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: rgba(5, 217, 232, 0.7);
+        }
+        
+        .sidebar-content {
+            flex: 1;
+            padding: 1.5rem 0;
+            overflow-y: auto;
+        }
+        
+        .nav-menu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1.5rem;
+            color: rgba(5, 217, 232, 0.8);
+            font-family: 'Orbitron', monospace;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-left: 2px solid transparent;
+        }
+        
+        .nav-item:hover {
+            background: rgba(13, 2, 33, 0.5);
+            color: #79ffe1;
+            border-left-color: #ff2a6d;
+        }
+        
+        .nav-item.active {
+            background: rgba(13, 2, 33, 0.5);
+            color: #79ffe1;
+            border-left-color: #ff2a6d;
+        }
+        
+        .nav-item i {
+            width: 24px;
+            margin-right: 0.75rem;
+            color: #05d9e8;
+        }
+        
+        .sidebar-footer {
+            padding: 1.5rem;
+            border-top: 1px solid rgba(5, 217, 232, 0.2);
+            text-align: center;
+        }
+        
+        .social-links {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .social-links a {
+            color: rgba(5, 217, 232, 0.7);
+            font-size: 1.25rem;
+            transition: all 0.3s ease;
+        }
+        
+        .social-links a:hover {
+            color: #ff2a6d;
+            transform: translateY(-2px);
+        }
+        
+        .visitor-stats {
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: rgba(5, 217, 232, 0.6);
+        }
+        
+        /* 主内容区 */
+        main {
+            margin-left: 280px;
+            flex: 1;
+            padding: 2rem;
+            min-height: 100vh;
+        }
+        
+        /* 内容区块 */
+        .content-section {
+            display: block;
+            margin-bottom: 3rem;
+            scroll-margin-top: 2rem;
+        }
+        
+        /* 网格布局 */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+        
+        /* 卡片样式 */
+        .card {
+            background: rgba(26, 23, 54, 0.8);
+            border: 1px solid rgba(5, 217, 232, 0.3);
+            border-radius: 8px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+        
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #05d9e8, #d300c5, #ff2a6d);
+        }
+        
+        .card:hover {
+            border-color: #ff2a6d;
+            box-shadow: 0 0 20px rgba(255, 42, 109, 0.3);
+            transform: translateY(-4px);
+        }
+        
+        .card-type {
+            font-family: monospace;
+            font-size: 0.625rem;
+            color: rgba(5, 217, 232, 0.6);
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+        
+        .card-name {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #79ffe1;
+            margin-bottom: 0.5rem;
+        }
+        
+        .card-desc {
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: rgba(5, 217, 232, 0.7);
+            line-height: 1.6;
+        }
+        
+        /* 滚动条样式 */
+        aside::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        aside::-webkit-scrollbar-track {
+            background: rgba(13, 2, 33, 0.5);
+        }
+        
+        aside::-webkit-scrollbar-thumb {
+            background: rgba(5, 217, 232, 0.3);
+            border-radius: 3px;
+        }
+        
+        aside::-webkit-scrollbar-thumb:hover {
+            background: rgba(5, 217, 232, 0.5);
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body class="bg-cyberBlack cyber-bg min-h-screen text-white">
+    <!-- 左侧菜单栏 -->
+    <aside>
+        <div class="sidebar-header">
+            <img src="img/bigbigli.png" alt="个人头像" class="avatar" onerror="this.style.display='none'">
+            
+            <div class="user-info">
+                <div class="user-name">算法和数据结构</div>
+                <div class="user-role">演示导航</div>
+            </div>
+        </div>
+
+        <div class="sidebar-content">
+            <ul class="nav-menu">
+                <li class="nav-item active" onclick="scrollToSection('outline')">
+                    <i class="fas fa-bookmark"></i>
+                    考试大纲
+                </li>
+                <li class="nav-item" onclick="scrollToSection('datastruct')">
+                    <i class="fas fa-database"></i>
+                    数据结构
+                </li>
+                <li class="nav-item" onclick="scrollToSection('sorting')">
+                    <i class="fas fa-sort"></i>
+                    排序算法
+                </li>
+                <li class="nav-item" onclick="scrollToSection('search')">
+                    <i class="fas fa-search"></i>
+                    查找算法
+                </li>
+                <li class="nav-item" onclick="scrollToSection('graph')">
+                    <i class="fas fa-share-alt"></i>
+                    图算法
+                </li>
+                <li class="nav-item" onclick="scrollToSection('dp')">
+                    <i class="fas fa-calculator"></i>
+                    动态规划
+                </li>
+                <li class="nav-item" onclick="scrollToSection('greedy')">
+                    <i class="fas fa-trophy"></i>
+                    贪心算法
+                </li>
+                <li class="nav-item" onclick="scrollToSection('games')">
+                    <i class="fas fa-gamepad"></i>
+                    算法小游戏
+                </li>
+            </ul>
+        </div>
+
+        <!-- <div class="sidebar-footer">
+            <div class="visitor-stats">
+                <i class="fas fa-chart-line"></i> 总访客数：<span id="busuanzi_value_site_pv">0</span>
+            </div>
+        </div> -->
+    </aside>
+
+    <!-- 右侧内容区 -->
+    <main>
+        <!-- 考试大纲 -->
+        <section id="outline" class="content-section">
+            <h2 style="font-family: 'Orbitron', monospace; font-size: 1.5rem; font-weight: 700; color: #79ffe1; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem;">
+                <i class="fas fa-bookmark" style="color: #ff2a6d;"></i>考试大纲
+            </h2>
+            <div class="grid">
+                <a href="alg/gesp.html" target="_blank" class="card">
+                    <span class="card-type">OUTLINE</span>
+                    <div class="card-name">GESP 1-8 级</div>
+                    <div class="card-desc">CCF GESP 等级考试 1-8 级完整大纲及知识点详解。</div>
+                </a>
+                <a href="alg/noi.html" target="_blank" class="card">
+                    <span class="card-type">OUTLINE</span>
+                    <div class="card-name">NOI 系列赛事</div>
+                    <div class="card-desc">NOI、NOIP、CSP-J/S 等竞赛大纲及备考指南。</div>
+                </a>
+            </div>
+        </section>
+
+        <!-- 数据结构 -->
+        <section id="datastruct" class="content-section">
+            <h2 style="font-family: 'Orbitron', monospace; font-size: 1.5rem; font-weight: 700; color: #79ffe1; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem;">
+                <i class="fas fa-database" style="color: #ff2a6d;"></i>数据结构
+            </h2>
+            <div class="grid">
+                <a href="alg/vector.html" target="_blank" class="card">
+                    <span class="card-type">ARRAY</span>
+                    <div class="card-name">数组</div>
+                    <div class="card-desc">连续存储结构 O(1) 访问，支持随机访问的线性表。</div>
+                </a>
+                <a href="alg/linked_list.html" target="_blank" class="card">
+                    <span class="card-type">LINKED LIST</span>
+                    <div class="card-name">链表</div>
+                    <div class="card-desc">交互式演示节点全过程，动态插入删除操作。</div>
+                </a>
+                <a href="alg/stack.html" target="_blank" class="card">
+                    <span class="card-type">STACK</span>
+                    <div class="card-name">栈</div>
+                    <div class="card-desc">后进先出 LIFO 结构，支持压栈弹栈操作。</div>
+                </a>
+                <a href="alg/queue.html" target="_blank" class="card">
+                    <span class="card-type">QUEUE</span>
+                    <div class="card-name">队列</div>
+                    <div class="card-desc">先进先出 FIFO 结构，支持入队出队操作。</div>
+                </a>
+                <a href="alg/tree.html" target="_blank" class="card">
+                    <span class="card-type">TREE</span>
+                    <div class="card-name">二叉树</div>
+                    <div class="card-desc">树的前序、中序、后序遍历过程可视化。</div>
+                </a>
+                <a href="alg/graph.html" target="_blank" class="card">
+                    <span class="card-type">GRAPH</span>
+                    <div class="card-name">图</div>
+                    <div class="card-desc">顶点 - 边网状结构，支持多种图算法。</div>
+                </a>
+                <a href="alg/hash-table.html" target="_blank" class="card">
+                    <span class="card-type">HASH TABLE</span>
+                    <div class="card-name">哈希表</div>
+                    <div class="card-desc">键值对映射 O(1) 查找，高效的数据结构。</div>
+                </a>
+                <a href="alg/heap.html" target="_blank" class="card">
+                    <span class="card-type">HEAP</span>
+                    <div class="card-name">堆</div>
+                    <div class="card-desc">完全二叉树优先队列，支持堆化操作。</div>
+                </a>
+                <a href="alg/string.html" target="_blank" class="card">
+                    <span class="card-type">STRING</span>
+                    <div class="card-name">字符串</div>
+                    <div class="card-desc">字符序列处理，支持模式匹配算法。</div>
+                </a>
+            </div>
+        </section>
+
+        <!-- 排序算法 -->
+        <section id="sorting" class="content-section">
+            <h2 style="font-family: 'Orbitron', monospace; font-size: 1.5rem; font-weight: 700; color: #79ffe1; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem;">
+                <i class="fas fa-sort" style="color: #ff2a6d;"></i>排序算法
+            </h2>
+            <div class="grid">
+                <a href="alg/bubble-sort.html" target="_blank" class="card">
+                    <span class="card-type">SORTING</span>
+                    <div class="card-name">冒泡排序</div>
+                    <div class="card-desc">基础交换排序 O(n²)，相邻元素比较交换。</div>
+                </a>
+                <a href="alg/selection-sort.html" target="_blank" class="card">
+                    <span class="card-type">SORTING</span>
+                    <div class="card-name">选择排序</div>
+                    <div class="card-desc">选择最值交换 O(n²)，简单直观的排序。</div>
+                </a>
+                <a href="alg/insertion-sort.html" target="_blank" class="card">
+                    <span class="card-type">SORTING</span>
+                    <div class="card-name">插入排序</div>
+                    <div class="card-desc">逐步插入有序序列 O(n²)，适合小规模数据。</div>
+                </a>
+                <a href="alg/merge-sort.html" target="_blank" class="card">
+                    <span class="card-type">SORTING</span>
+                    <div class="card-name">归并排序</div>
+                    <div class="card-desc">分治排序 O(n log n)，稳定高效。</div>
+                </a>
+                <a href="alg/quick-sort.html" target="_blank" class="card">
+                    <span class="card-type">SORTING</span>
+                    <div class="card-name">快速排序</div>
+                    <div class="card-desc">高效分治排序 O(n log n)，实际应用广泛。</div>
+                </a>
+                <a href="alg/heap-sort.html" target="_blank" class="card">
+                    <span class="card-type">SORTING</span>
+                    <div class="card-name">堆排序</div>
+                    <div class="card-desc">堆结构排序 O(n log n)，利用堆特性。</div>
+                </a>
+            </div>
+        </section>
+
+        <!-- 查找算法 -->
+        <section id="search" class="content-section">
+            <h2 style="font-family: 'Orbitron', monospace; font-size: 1.5rem; font-weight: 700; color: #79ffe1; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem;">
+                <i class="fas fa-search" style="color: #ff2a6d;"></i>查找算法
+            </h2>
+            <div class="grid">
+                <a href="alg/linear-search.html" target="_blank" class="card">
+                    <span class="card-type">SEARCH</span>
+                    <div class="card-name">线性查找</div>
+                    <div class="card-desc">顺序遍历 O(n)，最基础的查找方法。</div>
+                </a>
+                <a href="alg/binary.html" target="_blank" class="card">
+                    <span class="card-type">SEARCH</span>
+                    <div class="card-name">二分查找</div>
+                    <div class="card-desc">有序查找 O(log n)，高效的分治策略。</div>
+                </a>
+                <a href="alg/hash-search.html" target="_blank" class="card">
+                    <span class="card-type">SEARCH</span>
+                    <div class="card-name">哈希查找</div>
+                    <div class="card-desc">哈希表查找 O(1)，常数时间复杂度。</div>
+                </a>
+                <a href="alg/tree-search.html" target="_blank" class="card">
+                    <span class="card-type">SEARCH</span>
+                    <div class="card-name">树查找</div>
+                    <div class="card-desc">二叉搜索树 O(log n)，平衡树优化。</div>
+                </a>
+            </div>
+        </section>
+
+        <!-- 图算法 -->
+        <section id="graph" class="content-section">
+            <h2 style="font-family: 'Orbitron', monospace; font-size: 1.5rem; font-weight: 700; color: #79ffe1; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem;">
+                <i class="fas fa-share-alt" style="color: #ff2a6d;"></i>图算法
+            </h2>
+            <div class="grid">
+                <a href="alg/search/bfs.html" target="_blank" class="card">
+                    <span class="card-type">GRAPH</span>
+                    <div class="card-name">广度优先搜索</div>
+                    <div class="card-desc">BFS 层级遍历，队列实现的图遍历算法。</div>
+                </a>
+                <a href="alg/search/dfs.html" target="_blank" class="card">
+                    <span class="card-type">GRAPH</span>
+                    <div class="card-name">深度优先搜索</div>
+                    <div class="card-desc">DFS 深度遍历，递归或栈实现的图遍历。</div>
+                </a>
+                <a href="alg/dijkstra.html" target="_blank" class="card">
+                    <span class="card-type">GRAPH</span>
+                    <div class="card-name">迪杰斯特拉算法</div>
+                    <div class="card-desc">单源最短路径，贪心策略的经典算法。</div>
+                </a>
+                <a href="alg/floyd-warshall.html" target="_blank" class="card">
+                    <span class="card-type">GRAPH</span>
+                    <div class="card-name">弗洛伊德算法</div>
+                    <div class="card-desc">多源最短路径，动态规划思想。</div>
+                </a>
+                <a href="alg/kruskal.html" target="_blank" class="card">
+                    <span class="card-type">GRAPH</span>
+                    <div class="card-name">克鲁斯卡尔算法</div>
+                    <div class="card-desc">最小生成树，并查集优化。</div>
+                </a>
+                <a href="alg/prim.html" target="_blank" class="card">
+                    <span class="card-type">GRAPH</span>
+                    <div class="card-name">普里姆算法</div>
+                    <div class="card-desc">最小生成树，贪心策略。</div>
+                </a>
+            </div>
+        </section>
+
+        <!-- 动态规划 -->
+        <section id="dp" class="content-section">
+            <h2 style="font-family: 'Orbitron', monospace; font-size: 1.5rem; font-weight: 700; color: #79ffe1; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem;">
+                <i class="fas fa-calculator" style="color: #ff2a6d;"></i>动态规划
+            </h2>
+            <div class="grid">
+                <a href="alg/knapsack.html" target="_blank" class="card">
+                    <span class="card-type">DP</span>
+                    <div class="card-name">0-1 背包问题</div>
+                    <div class="card-desc">经典 DP 问题，最优子结构性质。</div>
+                </a>
+                <a href="alg/lcs.html" target="_blank" class="card">
+                    <span class="card-type">DP</span>
+                    <div class="card-name">最长公共子序列</div>
+                    <div class="card-desc">LCS 序列匹配，二维 DP 表。</div>
+                </a>
+                <a href="alg/lis.html" target="_blank" class="card">
+                    <span class="card-type">DP</span>
+                    <div class="card-name">最长递增子序列</div>
+                    <div class="card-desc">LIS 序列优化，贪心 + 二分。</div>
+                </a>
+                <a href="alg/matrix-chain.html" target="_blank" class="card">
+                    <span class="card-type">DP</span>
+                    <div class="card-name">矩阵链乘法</div>
+                    <div class="card-desc">优化计算顺序，区间 DP。</div>
+                </a>
+            </div>
+        </section>
+
+        <!-- 贪心算法 -->
+        <section id="greedy" class="content-section">
+            <h2 style="font-family: 'Orbitron', monospace; font-size: 1.5rem; font-weight: 700; color: #79ffe1; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem;">
+                <i class="fas fa-trophy" style="color: #ff2a6d;"></i>贪心算法
+            </h2>
+            <div class="grid">
+                <a href="alg/activity-selection.html" target="_blank" class="card">
+                    <span class="card-type">GREEDY</span>
+                    <div class="card-name">活动选择问题</div>
+                    <div class="card-desc">最优调度策略，贪心选择性质。</div>
+                </a>
+                <a href="alg/huffman.html" target="_blank" class="card">
+                    <span class="card-type">GREEDY</span>
+                    <div class="card-name">哈夫曼编码</div>
+                    <div class="card-desc">数据压缩算法，最优前缀码。</div>
+                </a>
+                <a href="alg/fractional-knapsack.html" target="_blank" class="card">
+                    <span class="card-type">GREEDY</span>
+                    <div class="card-name">分数背包问题</div>
+                    <div class="card-desc">贪心策略求解，可分割物品。</div>
+                </a>
+            </div>
+        </section>
+
+        <!-- 算法小游戏 -->
+        <section id="games" class="content-section">
+            <h2 style="font-family: 'Orbitron', monospace; font-size: 1.5rem; font-weight: 700; color: #79ffe1; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem;">
+                <i class="fas fa-gamepad" style="color: #ff2a6d;"></i>算法小游戏
+            </h2>
+            <div class="grid">
+                <a href="game/szq.html" target="_blank" class="card">
+                    <span class="card-type">GAME</span>
+                    <div class="card-name">井字棋</div>
+                    <div class="card-desc">博弈论经典应用，极小化极大算法。</div>
+                </a>
+                <a href="game/j.html" target="_blank" class="card">
+                    <span class="card-type">GAME</span>
+                    <div class="card-name">井字棋 2</div>
+                    <div class="card-desc">博弈论进阶版本，AI 对战。</div>
+                </a>
+                <a href="game/five.html" target="_blank" class="card">
+                    <span class="card-type">GAME</span>
+                    <div class="card-name">五子棋「人机对战」</div>
+                    <div class="card-desc">博弈论复杂应用，启发式评估。</div>
+                </a>
+            </div>
+        </section>
+
+        <!-- 页脚 -->
+        <footer style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid rgba(5, 217, 232, 0.2); text-align: center;">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 1rem;">
+                <div style="width: 8px; height: 8px; border-radius: 50%; background: #ff2a6d; animation: pulse 2s infinite;"></div>
+                <div style="width: 8px; height: 8px; border-radius: 50%; background: #05d9e8; animation: pulse 2s infinite 0.2s;"></div>
+                <div style="width: 8px; height: 8px; border-radius: 50%; background: #d300c5; animation: pulse 2s infinite 0.4s;"></div>
+            </div>
+            <p style="font-family: 'Orbitron', monospace; font-size: 0.875rem; color: rgba(5, 217, 232, 0.6); letter-spacing: 1px;">
+                // 猿编程 © 2026 // 信息学奥赛算法演示 //
+            </p>
+            <p style="font-family: monospace; font-size: 0.75rem; color: rgba(5, 217, 232, 0.4); margin-top: 0.5rem;">
+                // 点击卡片跳转至对应知识点演示页面 //
+            </p>
+        </footer>
+    </main>
+
+    <!-- 不蒜子统计 -->
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    
+    <script>
+        // 滚动到指定区块
+        function scrollToSection(sectionId) {
+            const targetSection = document.getElementById(sectionId);
+            if (targetSection) {
+                targetSection.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
+        }
+
+        // 监听滚动，高亮当前菜单项
+        const sections = document.querySelectorAll('.content-section');
+        const menuItems = document.querySelectorAll('.nav-item');
+
+        window.addEventListener('scroll', () => {
+            let current = '';
+            const scrollPosition = window.pageYOffset + 100;
+
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionHeight = section.offsetHeight;
+                if (scrollPosition >= sectionTop && scrollPosition < sectionTop + sectionHeight) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            menuItems.forEach(item => {
+                item.classList.remove('active');
+                const onclick = item.getAttribute('onclick');
+                if (onclick && onclick.includes(current)) {
+                    item.classList.add('active');
+                }
+            });
+        });
+
+        // 页面加载动画
+        document.addEventListener('DOMContentLoaded', () => {
+            const cards = document.querySelectorAll('.card');
+            cards.forEach(card => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(20px)';
+                card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            });
+            
+            cards.forEach((card, index) => {
+                setTimeout(() => {
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateY(0)';
+                }, 50 * index);
+            });
+        });
+    </script>
+</body>
+</html>

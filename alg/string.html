@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
+    <title>赛博朋克字符串算法演示</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/tailwindcss/3.4.1/tailwind.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tsparticles/engine@2/tsparticles.engine.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/tsparticles-engine/2.12.0/tsparticles.engine.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tsparticles/preset-links@2/tsparticles.preset.links.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/tsparticles-preset-links/2.12.0/tsparticles.preset.links.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Courier New', 'Courier', 'monospace', 'system-ui'] },
+                    colors: {
+                        cyber: {
+                            black: '#020205', dark: '#0a0a12', blue: '#00f3ff', pink: '#ff00ff',
+                            purple: '#bc13fe', yellow: '#ffee00', green: '#00ff9f',
+                        }
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #020205; color: #e0e0e0; touch-action: manipulation; overscroll-behavior: none; }
+        #tsparticles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+
+        .sidebar-cyber { background: rgba(10, 10, 18, 0.92); backdrop-filter: blur(16px); border-top: 1px solid rgba(0, 243, 255, 0.3); box-shadow: 0 -5px 20px rgba(0, 243, 255, 0.1); }
+        @media (min-width: 768px) { .sidebar-cyber { border-top: none; border-right: 2px solid #00f3ff; } }
+
+        .btn-cyber { position: relative; background: transparent; border: 2px solid; transition: all 0.2s; font-family: 'Courier New', monospace; user-select: none; }
+        .btn-cyber-blue { border-color: #00f3ff; color: #00f3ff; text-shadow: 0 0 5px #00f3ff; }
+        .btn-cyber-blue:active { background: #00f3ff; color: #000; box-shadow: 0 0 20px #00f3ff; transform: scale(0.96); }
+        @media(hover: hover) { .btn-cyber-blue:hover { background: #00f3ff; color: #000; box-shadow: 0 0 20px #00f3ff; } }
+
+        .btn-cyber-pink { border-color: #ff00ff; color: #ff00ff; text-shadow: 0 0 5px #ff00ff; }
+        .btn-cyber-pink:active { background: #ff00ff; color: #000; box-shadow: 0 0 20px #ff00ff; transform: scale(0.96); }
+        @media(hover: hover) { .btn-cyber-pink:hover { background: #ff00ff; color: #000; box-shadow: 0 0 20px #ff00ff; } }
+
+        .btn-cyber-green { border-color: #00ff9f; color: #00ff9f; text-shadow: 0 0 5px #00ff9f; }
+        .btn-cyber-green:active { background: #00ff9f; color: #000; box-shadow: 0 0 20px #00ff9f; transform: scale(0.96); }
+        @media(hover: hover) { .btn-cyber-green:hover { background: #00ff9f; color: #000; box-shadow: 0 0 20px #00ff9f; } }
+
+        .btn-cyber-purple { border-color: #bc13fe; color: #bc13fe; text-shadow: 0 0 5px #bc13fe; }
+        .btn-cyber-purple:active { background: #bc13fe; color: #000; box-shadow: 0 0 20px #bc13fe; transform: scale(0.96); }
+        @media(hover: hover) { .btn-cyber-purple:hover { background: #bc13fe; color: #000; box-shadow: 0 0 20px #bc13fe; } }
+
+        .char-box {
+            display: inline-block;
+            width: 32px;
+            height: 40px;
+            border: 2px solid rgba(0, 243, 255, 0.3);
+            background: rgba(10, 10, 18, 0.9);
+            text-align: center;
+            line-height: 40px;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            font-weight: bold;
+            margin: 2px;
+            transition: all 0.3s;
+        }
+
+        .char-box.current {
+            border-color: #ffee00;
+            background: rgba(255, 238, 0, 0.3);
+            box-shadow: 0 0 15px rgba(255, 238, 0, 0.5);
+            color: #ffee00;
+        }
+
+        .char-box.match {
+            border-color: #00ff9f;
+            background: rgba(0, 255, 159, 0.3);
+            box-shadow: 0 0 15px rgba(0, 255, 159, 0.5);
+            color: #00ff9f;
+        }
+
+        .char-box.mismatch {
+            border-color: #ff0055;
+            background: rgba(255, 0, 85, 0.2);
+            color: #ff0055;
+        }
+
+        ::-webkit-scrollbar { width: 4px; height: 4px;}
+        ::-webkit-scrollbar-track { background: #0a0a12; }
+        ::-webkit-scrollbar-thumb { background: #00f3ff; border-radius: 2px; }
+    </style>
+</head>
+<body class="overflow-hidden flex flex-col-reverse md:flex-row h-screen w-screen font-mono">
+
+    <div id="tsparticles"></div>
+
+    <!-- 左侧控制面板 -->
+    <aside class="w-full md:w-[380px] sidebar-cyber flex flex-col z-20 flex-shrink-0 h-[45%] md:h-full">
+        <div class="hidden md:block p-5 border-b border-cyber-blue/30 relative overflow-hidden">
+            <h1 class="text-3xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyber-blue to-cyber-purple drop-shadow-[0_0_10px_rgba(0,243,255,0.5)]">STRING_OS</h1>
+            <p class="text-[10px] text-cyber-blue/70 mt-1 tracking-[0.2em]">PATTERN MATCHING</p>
+        </div>
+        <div class="md:hidden w-full pt-2 pb-1 flex justify-center"><div class="w-12 h-1 bg-cyber-blue/30 rounded-full"></div></div>
+
+        <div class="flex-1 overflow-y-auto p-4 space-y-4">
+
+            <!-- 输入区域 -->
+            <div class="space-y-2">
+                <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">>> 字符串输入</label>
+                <div class="space-y-2">
+                    <div>
+                        <label class="text-xs text-cyber-blue mb-1 block">主串 (Text):</label>
+                        <input type="text" id="text-input" value="ABABCABABA" class="w-full bg-cyber-black/50 border border-cyber-blue text-white px-3 py-2 text-sm outline-none focus:border-cyber-blue">
+                    </div>
+                    <div>
+                        <label class="text-xs text-cyber-pink mb-1 block">模式串 (Pattern):</label>
+                        <input type="text" id="pattern-input" value="ABABA" class="w-full bg-cyber-black/50 border border-cyber-pink text-cyber-pink px-3 py-2 text-sm outline-none focus:border-cyber-pink">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 算法选择 -->
+            <div class="space-y-2 border border-cyber-purple/30 p-3 bg-black/40">
+                <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">>> 匹配算法</label>
+                <select id="algorithm-select" class="w-full bg-cyber-black/50 border-2 border-cyber-purple text-cyber-purple py-2 px-2 text-sm outline-none">
+                    <option value="brute">暴力匹配 (Brute Force)</option>
+                    <option value="kmp">KMP 算法 (Knuth-Morris-Pratt)</option>
+                    <option value="bm">BM 算法 (Boyer-Moore)</option>
+                    <option value="rabin">Rabin-Karp 算法 (滚动哈希)</option>
+                </select>
+            </div>
+
+            <!-- 执行按钮 -->
+            <div class="space-y-2">
+                <button onclick="runPatternMatching()" class="btn-cyber btn-cyber-green w-full py-3 text-sm font-bold">
+                    >> 执行模式匹配 <<
+                </button>
+                <button onclick="resetVisualization()" class="btn-cyber border-gray-400 text-gray-300 w-full py-2 text-xs font-bold hover:border-white hover:text-white">
+                    重置可视化
+                </button>
+            </div>
+
+            <!-- 示例数据 -->
+            <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-800">
+                <button onclick="loadExample1()" class="btn-cyber btn-cyber-purple py-2 text-xs font-bold">
+                    示例1: 经典
+                </button>
+                <button onclick="loadExample2()" class="btn-cyber btn-cyber-purple py-2 text-xs font-bold">
+                    示例2: DNA
+                </button>
+            </div>
+
+            <!-- 匹配结果 -->
+            <div class="space-y-2 pt-2 border-t border-gray-800">
+                <label class="text-[10px] text-cyber-yellow font-bold uppercase tracking-widest">>> 匹配结果</label>
+                <div id="match-result" class="bg-black/60 border border-cyber-yellow/30 p-3 text-xs min-h-[60px]">
+                    <div class="text-gray-500">等待执行...</div>
+                </div>
+            </div>
+
+            <!-- KMP Next 数组 -->
+            <div id="kmp-section" class="space-y-2 pt-2 border-t border-gray-800" style="display: none;">
+                <label class="text-[10px] text-cyber-blue font-bold uppercase tracking-widest">>> KMP Next 数组</label>
+                <div id="kmp-next" class="bg-black/60 border border-cyber-blue/30 p-3 text-xs overflow-auto">
+                    <!-- 动态生成 -->
+                </div>
+            </div>
+
+            <!-- 算法说明 -->
+            <div class="space-y-2 pt-2 border-t border-gray-800">
+                <label class="text-[10px] text-cyber-pink font-bold uppercase tracking-widest">>> 算法原理</label>
+                <div id="algo-explanation" class="text-[10px] text-gray-300 bg-black/60 border border-cyber-pink/30 p-3 leading-relaxed">
+                    <p class="text-cyber-blue font-bold mb-1">暴力匹配：</p>
+                    <p>• <span class="text-cyber-yellow">时间复杂度</span>：O(n × m)</p>
+                    <p>• <span class="text-cyber-green">策略</span>：逐位比较，失配后回退</p>
+                    <p>• <span class="text-cyber-pink">特点</span>：简单直观，但效率低</p>
+                </div>
+            </div>
+
+            <!-- 日志 -->
+            <div class="hidden md:block flex-1 min-h-[100px] bg-black/80 border border-gray-700 p-2 text-[10px] overflow-y-auto font-mono relative">
+                <div class="absolute top-0 right-0 px-1 bg-cyber-blue text-black font-bold">LOG</div>
+                <div id="log-box" class="space-y-1 mt-4 text-gray-400">
+                    <div class="text-cyber-green">> String Matching System Initialized.</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 右侧可视化区域 -->
+    <main class="flex-1 relative flex flex-col items-center overflow-hidden z-10 h-[55%] md:h-full">
+        <div class="w-full h-full overflow-auto p-8">
+            <div class="absolute top-4 left-4 pointer-events-none">
+                <h2 class="text-2xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-500 opacity-50">MATCHING</h2>
+                <p id="string-status" class="text-[10px] text-cyber-blue font-bold tracking-widest mt-1">READY</p>
+            </div>
+
+            <!-- 字符串可视化区域 -->
+            <div class="mt-20 space-y-8 max-w-4xl mx-auto">
+                <div>
+                    <div class="text-xs text-cyber-blue mb-2 font-bold">主串 (Text):</div>
+                    <div id="text-display" class="flex flex-wrap">
+                        <!-- 动态生成 -->
+                    </div>
+                </div>
+
+                <div>
+                    <div class="text-xs text-cyber-pink mb-2 font-bold">模式串 (Pattern):</div>
+                    <div id="pattern-display" class="flex flex-wrap">
+                        <!-- 动态生成 -->
+                    </div>
+                </div>
+
+                <!-- 比较过程可视化 -->
+                <div id="comparison-area" class="border-t border-gray-800 pt-4" style="display: none;">
+                    <div class="text-xs text-cyber-green mb-2 font-bold">比较过程:</div>
+                    <div id="comparison-display">
+                        <!-- 动态生成 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // --- 核心数据 ---
+        let text = '';
+        let pattern = '';
+        let isAnimating = false;
+
+        // 声音系统
+        let audioCtx = null;
+        function playSound(type) {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+
+            if (type === 'match') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(1200, now); osc.frequency.exponentialRampToValueAtTime(1500, now + 0.15);
+                gain.gain.setValueAtTime(0.12, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now); osc.stop(now + 0.15);
+            } else if (type === 'mismatch') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(300, now); osc.frequency.linearRampToValueAtTime(150, now + 0.15);
+                gain.gain.setValueAtTime(0.08, now); gain.gain.linearRampToValueAtTime(0, now + 0.15);
+                osc.start(now); osc.stop(now + 0.15);
+            } else if (type === 'found') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(800, now); osc.frequency.exponentialRampToValueAtTime(1400, now + 0.2);
+                gain.gain.setValueAtTime(0.15, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now); osc.stop(now + 0.2);
+            } else if (type === 'step') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(600, now);
+                gain.gain.setValueAtTime(0.05, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now); osc.stop(now + 0.1);
+            }
+        }
+
+        // 日志系统
+        function log(msg, type = 'normal') {
+            const logBox = document.getElementById('log-box');
+            if(!logBox) return;
+            const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+            let color = 'text-gray-400';
+            if (type === 'success') color = 'text-cyber-green';
+            if (type === 'error') color = 'text-cyber-pink';
+            if (type === 'warn') color = 'text-cyber-yellow';
+            if (type === 'info') color = 'text-cyber-blue';
+            const div = document.createElement('div');
+            div.innerHTML = `<span class="opacity-50">[${time}]</span> <span class="${color}">${msg}</span>`;
+            logBox.prepend(div);
+        }
+
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+        // --- 渲染字符串 ---
+        function renderStrings(textHighlight = [], patternHighlight = [], comparisonOffset = -1) {
+            const textDisplay = document.getElementById('text-display');
+            const patternDisplay = document.getElementById('pattern-display');
+
+            textDisplay.innerHTML = text.split('').map((char, i) => {
+                let className = 'char-box';
+                if (textHighlight.includes(i)) {
+                    if (patternHighlight.length > 0 && i >= comparisonOffset && i < comparisonOffset + pattern.length) {
+                        const patternIdx = i - comparisonOffset;
+                        if (text[i] === pattern[patternIdx]) {
+                            className += ' match';
+                        } else {
+                            className += ' mismatch';
+                        }
+                    } else {
+                        className += ' current';
+                    }
+                }
+                return `<div class="${className}">${char}</div>`;
+            }).join('');
+
+            patternDisplay.innerHTML = pattern.split('').map((char, i) => {
+                let className = 'char-box';
+                if (patternHighlight.includes(i)) {
+                    if (comparisonOffset >= 0 && comparisonOffset + i < text.length) {
+                        if (text[comparisonOffset + i] === pattern[i]) {
+                            className += ' match';
+                        } else {
+                            className += ' mismatch';
+                        }
+                    }
+                }
+                return `<div class="${className}">${char}</div>`;
+            }).join('');
+        }
+
+        // --- 更新算法说明 ---
+        function updateExplanation(algo) {
+            const explanations = {
+                'brute': `
+                    <p class="text-cyber-blue font-bold mb-1">暴力匹配 (Brute Force)：</p>
+                    <p>• <span class="text-cyber-yellow">时间复杂度</span>：O(n × m)</p>
+                    <p>• <span class="text-cyber-green">策略</span>：逐位比较，失配后回退</p>
+                    <p>• <span class="text-cyber-pink">特点</span>：简单直观，但效率低</p>
+                `,
+                'kmp': `
+                    <p class="text-cyber-blue font-bold mb-1">KMP 算法：</p>
+                    <p>• <span class="text-cyber-yellow">时间复杂度</span>：O(n + m)</p>
+                    <p>• <span class="text-cyber-green">核心</span>：利用 Next 数组避免回退</p>
+                    <p>• <span class="text-cyber-pink">Next[i]</span>：最长公共前后缀长度</p>
+                    <p>• <span class="text-cyber-purple">优势</span>：线性时间，高效</p>
+                `,
+                'bm': `
+                    <p class="text-cyber-blue font-bold mb-1">Boyer-Moore 算法：</p>
+                    <p>• <span class="text-cyber-yellow">时间复杂度</span>：平均 O(n/m)，最坏 O(n×m)</p>
+                    <p>• <span class="text-cyber-green">策略</span>：从右向左比较</p>
+                    <p>• <span class="text-cyber-pink">坏字符规则</span>：跳过不匹配字符</p>
+                    <p>• <span class="text-cyber-purple">好后缀规则</span>：利用已匹配部分</p>
+                `,
+                'rabin': `
+                    <p class="text-cyber-blue font-bold mb-1">Rabin-Karp 算法：</p>
+                    <p>• <span class="text-cyber-yellow">时间复杂度</span>：平均 O(n + m)</p>
+                    <p>• <span class="text-cyber-green">核心</span>：滚动哈希值比较</p>
+                    <p>• <span class="text-cyber-pink">优势</span>：适合多模式匹配</p>
+                    <p>• <span class="text-cyber-purple">注意</span>：需要处理哈希冲突</p>
+                `
+            };
+            document.getElementById('algo-explanation').innerHTML = explanations[algo] || '';
+        }
+
+        // --- 暴力匹配算法 ---
+        async function bruteForceMatch() {
+            const matches = [];
+            const n = text.length;
+            const m = pattern.length;
+
+            for (let i = 0; i <= n - m; i++) {
+                log(`检查位置 ${i}`, 'info');
+                playSound('step');
+
+                let j = 0;
+                for (j = 0; j < m; j++) {
+                    renderStrings([i + j], [j], i);
+                    await sleep(400);
+
+                    if (text[i + j] !== pattern[j]) {
+                        playSound('mismatch');
+                        log(`位置 ${i} 第 ${j} 个字符不匹配`, 'warn');
+                        await sleep(300);
+                        break;
+                    } else {
+                        playSound('match');
+                    }
+                }
+
+                if (j === m) {
+                    matches.push(i);
+                    playSound('found');
+                    log(`✓ 在位置 ${i} 找到匹配！`, 'success');
+                    renderStrings(Array.from({length: m}, (_, k) => i + k), Array.from({length: m}, (_, k) => k), i);
+                    await sleep(800);
+                }
+            }
+
+            return matches;
+        }
+
+        // --- KMP Next 数组构建 ---
+        function buildNext(pattern) {
+            const m = pattern.length;
+            const next = new Array(m).fill(0);
+
+            let j = 0;
+            for (let i = 1; i < m; i++) {
+                while (j > 0 && pattern[i] !== pattern[j]) {
+                    j = next[j - 1];
+                }
+                if (pattern[i] === pattern[j]) {
+                    j++;
+                }
+                next[i] = j;
+            }
+
+            return next;
+        }
+
+        // --- KMP 算法 ---
+        async function kmpMatch() {
+            const matches = [];
+            const n = text.length;
+            const m = pattern.length;
+            const next = buildNext(pattern);
+
+            // 显示 Next 数组
+            const kmpSection = document.getElementById('kmp-section');
+            kmpSection.style.display = 'block';
+            const kmpNext = document.getElementById('kmp-next');
+            let nextHtml = '<div class="flex gap-1 mb-2">';
+            pattern.split('').forEach((char, i) => {
+                nextHtml += `<div class="char-box">${char}</div>`;
+            });
+            nextHtml += '</div><div class="flex gap-1">';
+            next.forEach(val => {
+                nextHtml += `<div class="char-box text-cyber-blue">${val}</div>`;
+            });
+            nextHtml += '</div>';
+            kmpNext.innerHTML = nextHtml;
+
+            log(`Next 数组: [${next.join(', ')}]`, 'info');
+            await sleep(800);
+
+            let j = 0;
+            for (let i = 0; i < n; i++) {
+                while (j > 0 && text[i] !== pattern[j]) {
+                    log(`失配，利用 Next[${j}] = ${next[j - 1]} 跳转`, 'warn');
+                    j = next[j - 1];
+                    playSound('step');
+                    await sleep(400);
+                }
+
+                renderStrings([i], [j], i - j);
+                await sleep(400);
+
+                if (text[i] === pattern[j]) {
+                    playSound('match');
+                    j++;
+
+                    if (j === m) {
+                        matches.push(i - m + 1);
+                        playSound('found');
+                        log(`✓ 在位置 ${i - m + 1} 找到匹配！`, 'success');
+                        renderStrings(Array.from({length: m}, (_, k) => i - m + 1 + k),
+                                     Array.from({length: m}, (_, k) => k), i - m + 1);
+                        await sleep(800);
+                        j = next[j - 1];
+                    }
+                } else {
+                    playSound('mismatch');
+                }
+            }
+
+            return matches;
+        }
+
+        // --- Boyer-Moore 简化版 (坏字符规则) ---
+        async function bmMatch() {
+            const matches = [];
+            const n = text.length;
+            const m = pattern.length;
+
+            // 构建坏字符表
+            const badChar = {};
+            for (let i = 0; i < m; i++) {
+                badChar[pattern[i]] = i;
+            }
+
+            let i = 0;
+            while (i <= n - m) {
+                log(`检查位置 ${i}`, 'info');
+                playSound('step');
+
+                let j = m - 1;
+                while (j >= 0) {
+                    renderStrings([i + j], [j], i);
+                    await sleep(400);
+
+                    if (text[i + j] !== pattern[j]) {
+                        playSound('mismatch');
+                        log(`位置 ${i} 第 ${j} 个字符不匹配`, 'warn');
+                        await sleep(300);
+                        break;
+                    } else {
+                        playSound('match');
+                        j--;
+                    }
+                }
+
+                if (j < 0) {
+                    matches.push(i);
+                    playSound('found');
+                    log(`✓ 在位置 ${i} 找到匹配！`, 'success');
+                    renderStrings(Array.from({length: m}, (_, k) => i + k),
+                                 Array.from({length: m}, (_, k) => k), i);
+                    await sleep(800);
+                    i++;
+                } else {
+                    // 使用坏字符规则移动
+                    const badCharPos = badChar[text[i + j]] !== undefined ? badChar[text[i + j]] : -1;
+                    const shift = Math.max(1, j - badCharPos);
+                    log(`使用坏字符规则，向右移动 ${shift} 位`, 'info');
+                    i += shift;
+                }
+            }
+
+            return matches;
+        }
+
+        // --- Rabin-Karp 算法 ---
+        async function rabinKarpMatch() {
+            const matches = [];
+            const n = text.length;
+            const m = pattern.length;
+            const base = 256;
+            const prime = 101;
+
+            // 计算模式串哈希值
+            let patternHash = 0;
+            let textHash = 0;
+            let h = 1;
+
+            for (let i = 0; i < m - 1; i++) {
+                h = (h * base) % prime;
+            }
+
+            for (let i = 0; i < m; i++) {
+                patternHash = (base * patternHash + pattern.charCodeAt(i)) % prime;
+                textHash = (base * textHash + text.charCodeAt(i)) % prime;
+            }
+
+            log(`模式串哈希值: ${patternHash}`, 'info');
+            await sleep(500);
+
+            for (let i = 0; i <= n - m; i++) {
+                log(`位置 ${i} 哈希值: ${textHash}`, 'info');
+                renderStrings(Array.from({length: m}, (_, k) => i + k), [], i);
+                playSound('step');
+                await sleep(400);
+
+                if (patternHash === textHash) {
+                    // 哈希值相同，逐字符验证
+                    let match = true;
+                    for (let j = 0; j < m; j++) {
+                        if (text[i + j] !== pattern[j]) {
+                            match = false;
+                            break;
+                        }
+                    }
+
+                    if (match) {
+                        matches.push(i);
+                        playSound('found');
+                        log(`✓ 在位置 ${i} 找到匹配！`, 'success');
+                        renderStrings(Array.from({length: m}, (_, k) => i + k),
+                                     Array.from({length: m}, (_, k) => k), i);
+                        await sleep(800);
+                    } else {
+                        playSound('mismatch');
+                        log(`哈希冲突，实际不匹配`, 'warn');
+                    }
+                }
+
+                // 滚动哈希
+                if (i < n - m) {
+                    textHash = (base * (textHash - text.charCodeAt(i) * h) + text.charCodeAt(i + m)) % prime;
+                    if (textHash < 0) textHash += prime;
+                }
+            }
+
+            return matches;
+        }
+
+        // --- 执行模式匹配 ---
+        async function runPatternMatching() {
+            if (isAnimating) return;
+
+            text = document.getElementById('text-input').value;
+            pattern = document.getElementById('pattern-input').value;
+
+            if (!text || !pattern) {
+                log('Error: 请输入主串和模式串', 'error');
+                return;
+            }
+
+            if (pattern.length > text.length) {
+                log('Error: 模式串长度不能大于主串', 'error');
+                return;
+            }
+
+            isAnimating = true;
+            document.getElementById('string-status').innerText = 'MATCHING...';
+            document.getElementById('match-result').innerHTML = '<div class="text-cyber-yellow">匹配中...</div>';
+            document.getElementById('kmp-section').style.display = 'none';
+
+            renderStrings();
+
+            const algo = document.getElementById('algorithm-select').value;
+            updateExplanation(algo);
+            log(`=== 开始执行 ${algo.toUpperCase()} 算法 ===`, 'warn');
+            await sleep(500);
+
+            let matches = [];
+            switch(algo) {
+                case 'brute':
+                    matches = await bruteForceMatch();
+                    break;
+                case 'kmp':
+                    matches = await kmpMatch();
+                    break;
+                case 'bm':
+                    matches = await bmMatch();
+                    break;
+                case 'rabin':
+                    matches = await rabinKarpMatch();
+                    break;
+            }
+
+            // 显示结果
+            let resultHtml = '';
+            if (matches.length > 0) {
+                resultHtml = `<div class="text-cyber-green font-bold mb-1">找到 ${matches.length} 个匹配:</div>`;
+                resultHtml += `<div class="text-cyber-yellow">位置: [${matches.join(', ')}]</div>`;
+            } else {
+                resultHtml = '<div class="text-cyber-pink">未找到匹配</div>';
+            }
+            document.getElementById('match-result').innerHTML = resultHtml;
+
+            document.getElementById('string-status').innerText = `COMPLETE: ${matches.length} MATCH(ES)`;
+            log(`=== 匹配完成，找到 ${matches.length} 个结果 ===`, 'success');
+
+            renderStrings();
+            isAnimating = false;
+        }
+
+        // --- 重置 ---
+        function resetVisualization() {
+            text = document.getElementById('text-input').value;
+            pattern = document.getElementById('pattern-input').value;
+            renderStrings();
+            document.getElementById('string-status').innerText = 'READY';
+            document.getElementById('match-result').innerHTML = '<div class="text-gray-500">等待执行...</div>';
+            document.getElementById('kmp-section').style.display = 'none';
+            log('可视化已重置', 'warn');
+        }
+
+        // --- 示例数据 ---
+        function loadExample1() {
+            document.getElementById('text-input').value = 'ABABCABABA';
+            document.getElementById('pattern-input').value = 'ABABA';
+            resetVisualization();
+            log('加载经典示例', 'info');
+        }
+
+        function loadExample2() {
+            document.getElementById('text-input').value = 'ATCGATCGATCG';
+            document.getElementById('pattern-input').value = 'GATC';
+            resetVisualization();
+            log('加载 DNA 序列示例', 'info');
+        }
+
+        // --- 初始化 ---
+        window.onload = function() {
+            tsParticles.load({
+                id: "tsparticles",
+                options: {
+                    background: { color: { value: "transparent" } },
+                    particles: {
+                        color: { value: "#00f3ff" },
+                        links: { color: "#bc13fe", distance: 150, enable: true, opacity: 0.15, width: 1 },
+                        move: { enable: true, speed: 0.5 },
+                        number: { value: window.innerWidth < 768 ? 15 : 30 },
+                        opacity: { value: 0.3 }, size: { value: 2 }
+                    }
+                }
+            });
+
+            resetVisualization();
+        };
+    </script>
+</body>
+</html>

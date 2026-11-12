@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>赛博朋克最长上升子序列演示</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tsparticles@2.12.0/tsparticles.bundle.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: { extend: {
+                fontFamily: { sans: ['Courier New', 'Courier', 'monospace', 'system-ui'] },
+                colors: { cyber: { black: '#020205', dark: '#0a0a12', blue: '#00f3ff', pink: '#ff00ff', purple: '#bc13fe', yellow: '#ffee00', green: '#00ff9f' } }
+            }}
+        }
+    </script>
+    <style>
+        body { background-color: #020205; color: #e0e0e0; touch-action: manipulation; overscroll-behavior: none; }
+        #tsparticles { position: fixed; inset: 0; z-index: -1; }
+        .sidebar-cyber { background: rgba(10,10,18,0.92); backdrop-filter: blur(16px); border-top: 1px solid rgba(0,243,255,0.3); }
+        @media (min-width:768px) { .sidebar-cyber { border-top: none; border-right: 2px solid #00f3ff; } }
+        .btn-cyber { border: 2px solid; transition: all .2s; font-family:'Courier New',monospace; cursor:pointer; }
+        .btn-cyber-blue { border-color:#00f3ff; color:#00f3ff; }
+        .btn-cyber-blue:active { background:#00f3ff; color:#000; box-shadow:0 0 20px #00f3ff; }
+        .btn-cyber-green { border-color:#00ff9f; color:#00ff9f; }
+        .btn-cyber-green:active { background:#00ff9f; color:#000; box-shadow:0 0 20px #00ff9f; }
+        .btn-cyber-pink { border-color:#ff00ff; color:#ff00ff; }
+        .btn-cyber-pink:active { background:#ff00ff; color:#000; box-shadow:0 0 20px #ff00ff; }
+        .cell { transition: all .35s cubic-bezier(.34,1.56,.64,1); background: rgba(0,243,255,.05); border: 1px solid rgba(0,243,255,.3); }
+        .cell.active { border-color:#00f3ff; background:rgba(0,243,255,.2); box-shadow:0 0 15px #00f3ff; }
+        .cell.compare { border-color:#ffee00; background:rgba(255,238,0,.18); box-shadow:0 0 12px #ffee00; }
+        .cell.sorted, .cell.best { border-color:#00ff9f; background:rgba(0,255,159,.22); box-shadow:0 0 10px rgba(0,255,159,.5); }
+        .cell.found { border-color:#00ff9f; background:rgba(0,255,159,.35); box-shadow:0 0 20px #00ff9f; }
+        /* === LIS 专用：双行数组布局 === */
+        .lis-wrap { position: relative; display: flex; flex-direction: column; align-items: center; gap: 0; }
+        .lis-row { display: flex; gap: 8px; }
+        .lis-label { position: absolute; left: -3.2rem; top: 50%; transform: translateY(-50%);
+            font-weight: bold; font-size: 15px; }
+        .lis-box { width: 62px; height: 56px; display: flex; align-items: center; justify-content: center;
+            font-size: 17px; font-weight: bold; color: #ffee00;
+            background: rgba(0, 90, 255, 0.35); border: 1px solid rgba(0,243,255,.4); }
+        .lis-box.idx { background: rgba(188,19,254,.15); color: #bc13fe; font-size: 11px; font-weight: normal; height: 22px; }
+        .lis-box.cur { border-color: #ff00ff; box-shadow: 0 0 18px #ff00ff; background: rgba(255,0,255,.25); }
+        .lis-box.cmp { border-color: #ffee00; box-shadow: 0 0 12px #ffee00; background: rgba(255,238,0,.2); }
+        .lis-box.updated { border-color: #00ff9f; box-shadow: 0 0 15px #00ff9f; background: rgba(0,255,159,.25); color: #00ff9f; }
+        .lis-box.ans { border-color: #00ff9f; box-shadow: 0 0 12px #00ff9f; color: #00ff9f; }
+        .arrow-zone { position: relative; width: 100%; height: 84px; }
+        .arrow-zone svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+        .dp-table { border-collapse: collapse; margin: 0 auto; }
+        .dp-table td { border:1px solid rgba(0,243,255,.35); padding:8px 12px; font-size:14px; min-width:44px;
+            text-align:center; transition: all .3s; color:#e0e0e0; }
+        .dp-table td.h { color:#bc13fe; font-weight:bold; background:rgba(188,19,254,.08); }
+        .dp-table td.best { border-color:#00ff9f; background:rgba(0,255,159,.22); color:#00ff9f; font-weight:bold; }
+        .scroll-container { width:100%; height:100%; overflow:auto; -webkit-overflow-scrolling:touch;
+            scrollbar-width:thin; scrollbar-color:#00f3ff #0a0a12; }
+        #visual { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1rem; padding:2.5rem; min-height:320px; }
+        .scroll-container::-webkit-scrollbar { height:8px; width:8px; }
+        .scroll-container::-webkit-scrollbar-track { background:rgba(10,10,18,.8); }
+        .scroll-container::-webkit-scrollbar-thumb { background:#00f3ff; border-radius:4px; }
+        .back-link { color:#00f3ff; text-decoration:none; font-size:10px; letter-spacing:.15em; }
+        .back-link:hover { text-shadow:0 0 8px #00f3ff; }
+    </style>
+</head>
+<body class="overflow-hidden flex flex-col-reverse md:flex-row h-screen w-screen font-mono">
+    <div id="tsparticles"></div>
+    <aside class="w-full md:w-[380px] sidebar-cyber flex flex-col z-20 flex-shrink-0 h-[45%] md:h-full shadow-[5px_0_15px_rgba(0,0,0,0.5)]">
+        <div class="hidden md:block p-6 border-b border-cyber-blue/30 bg-gradient-to-br from-cyber-blue/10 to-transparent">
+            <h1 class="text-3xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyber-blue to-cyber-purple drop-shadow-[0_0_8px_rgba(0,243,255,0.4)]">LIS_DP</h1>
+            <p class="text-[10px] text-cyber-blue/60 mt-1 uppercase tracking-widest">Algorithm Visualizer</p>
+            <a class="back-link" href="../index.html">&#60;&#60; BACK_TO_NAV [&lt;- 返回导航]</a>
+        </div>
+        <div class="md:hidden px-4 pt-3 flex items-center justify-between">
+            <span class="text-lg font-black italic text-cyber-blue">LIS_DP</span>
+            <a class="back-link" href="../index.html">&lt;- 返回导航</a>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 space-y-5">
+            <div class="space-y-3 p-4 bg-black/40 border border-cyber-blue/30 relative">
+                <div class="absolute top-0 left-0 w-2 h-2 border-t border-l border-cyber-blue"></div>
+                <div class="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-cyber-blue"></div>
+                <label class="block text-[10px] text-cyber-blue font-bold tracking-widest uppercase">&gt;&gt; Data Config</label>
+                <div class="flex items-center gap-3">
+                    <div class="flex-1">
+                        <p class="text-[10px] text-gray-500 mb-1">数据个数 (5-12)</p>
+                        <input type="number" id="size" value="10" min="5" max="12" class="w-full bg-black border border-gray-600 text-white text-center py-2 text-sm focus:border-cyber-blue outline-none transition-colors">
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-[10px] text-gray-500 mb-1">值域上限</p>
+                        <input type="number" id="maxval" value="120" min="10" max="999" class="w-full bg-black border border-gray-600 text-white text-center py-2 text-sm focus:border-cyber-blue outline-none transition-colors">
+                    </div>
+                </div>
+                <button onclick="generateData()" class="w-full btn-cyber btn-cyber-blue py-2 text-xs font-bold uppercase tracking-wider">↻ 生成随机数据</button>
+            </div>
+            <div class="space-y-3 pt-2">
+                <label class="block text-[10px] text-cyber-green font-bold tracking-widest uppercase">&gt;&gt; Step Control</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <button id="btn-prev" class="btn-cyber btn-cyber-blue py-3 text-xs font-bold tracking-wider">⏮ 上一步</button>
+                    <button id="btn-play" class="btn-cyber btn-cyber-green py-3 text-xs font-bold tracking-wider">▶ 播放</button>
+                    <button id="btn-next" class="btn-cyber btn-cyber-pink py-3 text-xs font-bold tracking-wider">⏭ 下一步</button>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="flex-1">
+                        <p class="text-[10px] text-gray-500 mb-1">动画速度 <span id="speed-val" class="text-cyber-yellow">50</span>ms</p>
+                        <input type="range" id="speed" min="5" max="300" value="50" class="w-full">
+                    </div>
+                    <div class="text-center">
+                        <p class="text-[10px] text-gray-500 mb-1">步数</p>
+                        <span id="pos" class="text-cyber-yellow text-base font-bold">0/0</span>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 bg-black/40 border border-cyber-green/30 relative">
+                <div class="absolute top-0 left-0 w-2 h-2 border-t border-l border-cyber-green"></div>
+                <label class="block text-[10px] text-cyber-green font-bold tracking-widest uppercase mb-2">&gt;&gt; Status Log</label>
+                <div id="log" class="text-[11px] leading-5 text-gray-400 h-28 overflow-y-auto">READY_</div>
+            </div>
+        </div>
+    </aside>
+    <main class="flex-1 relative overflow-hidden">
+        <div class="absolute top-4 left-4 z-10 text-[10px] text-cyber-blue/70 tracking-widest uppercase">赛博朋克最长上升子序列演示 // O(n^2) DP</div>
+        <div id="status-bar" class="absolute top-4 right-4 z-10 text-[12px] text-cyber-yellow tracking-wider"></div>
+        <div class="scroll-container h-full"><div id="visual"></div></div>
+    </main>
+    <script>
+        // ===== shared step runtime =====
+        const visual = document.getElementById('visual');
+        const logEl = document.getElementById('log');
+        const statusBar = document.getElementById('status-bar');
+        const posEl = document.getElementById('pos');
+        const playBtn = document.getElementById('btn-play');
+        let data = [];
+        let steps = [], stepIdx = -1, gen = null, playing = false, playTimer = null, finished = false;
+        const clamp = (v, a, b) => Math.max(a, Math.min(b, isNaN(v) ? a : v));
+        function log(m) {
+            const d = document.createElement('div');
+            d.textContent = '> ' + m; d.className = 'text-cyber-blue/80';
+            logEl.insertBefore(d, logEl.firstChild);
+            logEl.scrollTop = 0;
+            if (logEl.children.length > 150) logEl.removeChild(logEl.lastChild);
+        }
+        function capture() { return { vis: visual.innerHTML, st: statusBar.textContent, lg: logEl.innerHTML }; }
+        function show(i) {
+            const s = steps[i]; stepIdx = i;
+            visual.innerHTML = s.vis; statusBar.textContent = s.st; logEl.innerHTML = s.lg;
+            logEl.scrollTop = 0;
+            posEl.textContent = (stepIdx + 1) + '/' + steps.length;
+        }
+        function resetSteps() {
+            playing = false; clearTimeout(playTimer); playBtn.textContent = '▶ 播放';
+            gen = null; steps = []; stepIdx = -1; finished = false;
+            logEl.innerHTML = 'READY_'; statusBar.textContent = ''; posEl.textContent = '0/0';
+        }
+        function generateData() { resetSteps(); buildData(); }
+        function advanceOne() {
+            if (finished) return 'done';
+            if (!gen) { logEl.innerHTML = ''; gen = algorithmGen(); }
+            const r = gen.next();
+            steps.push(capture());
+            if (r.done) { gen = null; finished = true; return 'done'; }
+            return 'step';
+        }
+        function stepNext() {
+            pause();
+            if (stepIdx < steps.length - 1) { show(stepIdx + 1); return; }
+            const res = advanceOne();
+            show(steps.length - 1);
+            if (res === 'done') log('已到最后一步');
+        }
+        function stepPrev() { pause(); if (stepIdx > 0) show(stepIdx - 1); }
+        function pause() { playing = false; clearTimeout(playTimer); playBtn.textContent = '▶ 播放'; }
+        function play() {
+            if (playing) { pause(); return; }
+            playing = true; playBtn.textContent = '⏸ 暂停';
+            const loop = () => {
+                if (!playing) return;
+                if (stepIdx < steps.length - 1) { show(stepIdx + 1); }
+                else {
+                    const res = advanceOne();
+                    show(steps.length - 1);
+                    if (res === 'done') { pause(); return; }
+                }
+                playTimer = setTimeout(loop, +document.getElementById('speed').value);
+            };
+            loop();
+        }
+        document.getElementById('btn-prev').onclick = stepPrev;
+        document.getElementById('btn-next').onclick = stepNext;
+        playBtn.onclick = play;
+        document.getElementById('speed').oninput = e => document.getElementById('speed-val').textContent = e.target.value;
+        window.addEventListener('load', () => {
+            tsParticles.load({ id: 'tsparticles', options: {
+                background: { color: { value: 'transparent' } },
+                particles: {
+                    color: { value: '#00f3ff' },
+                    links: { enable: true, opacity: 0.1, distance: 130, color: '#00f3ff' },
+                    move: { enable: true, speed: 0.5 },
+                    number: { value: 35, density: { enable: true, area: 800 } },
+                    opacity: { value: 0.25 },
+                    size: { value: { min: 1, max: 2 } }
+                }
+            }});
+            generateData();
+        });
+    </script>
+    <script>
+        // ===== LIS O(n^2) DP：nums 行 + m(dp) 行 + 转移箭头 =====
+        let N = 10, dp = [];
+        const BOX_W = 62, GAP = 8, ROW_PAD = 0;   // 与 .lis-box/.lis-row 保持一致
+
+        function buildData() {
+            N = clamp(+document.getElementById('size').value, 5, 12);
+            const mx = clamp(+document.getElementById('maxval').value, 10, 999);
+            data = Array.from({ length: N }, () => 1 + Math.floor(Math.random() * mx));
+            dp = Array(N).fill(1);
+            logEl.innerHTML = 'READY_'; statusBar.textContent = '';
+            render(null, null, []);
+        }
+
+        // 居中行的左起点（配合 svg 宽度一致，坐标可直接换算）
+        function rowLeft(containerW, n) {
+            const rowW = n * BOX_W + (n - 1) * GAP;
+            return (containerW - rowW) / 2;
+        }
+
+        function render(curI, cmpJ, trail) {
+            // trail: [{j, ok}] 本次 i 之前比较过的 j 列表
+            visual.innerHTML = '';
+            const wrap = document.createElement('div');
+            wrap.className = 'lis-wrap';
+            const rowW = N * BOX_W + (N - 1) * GAP;
+            wrap.style.width = Math.max(rowW, 260) + 'px';
+
+            // nums 行
+            const numsRow = document.createElement('div');
+            numsRow.className = 'lis-row';
+            numsRow.style.position = 'relative';
+            const lbl1 = document.createElement('span');
+            lbl1.className = 'lis-label'; lbl1.style.color = '#00f3ff'; lbl1.textContent = 'nums';
+            numsRow.appendChild(lbl1);
+            for (let i = 0; i < N; i++) {
+                const b = document.createElement('div');
+                b.className = 'lis-box' + (i === curI ? ' cur' : (trail.includes(i) ? ' cmp' : ''));
+                b.id = 'n-' + i;
+                b.textContent = data[i];
+                numsRow.appendChild(b);
+            }
+            wrap.appendChild(numsRow);
+
+            // 箭头区
+            const zone = document.createElement('div');
+            zone.className = 'arrow-zone';
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.id = 'arrow-svg';
+            zone.appendChild(svg);
+            wrap.appendChild(zone);
+
+            // dp(m) 行
+            const dpRow = document.createElement('div');
+            dpRow.className = 'lis-row';
+            dpRow.style.position = 'relative';
+            const lbl2 = document.createElement('span');
+            lbl2.className = 'lis-label'; lbl2.style.color = '#bc13fe'; lbl2.textContent = 'm';
+            dpRow.appendChild(lbl2);
+            for (let i = 0; i < N; i++) {
+                const b = document.createElement('div');
+                b.className = 'lis-box' + (dp[i] > 1 ? ' best' : '');
+                b.id = 'm-' + i;
+                b.textContent = dp[i];
+                dpRow.appendChild(b);
+            }
+            wrap.appendChild(dpRow);
+
+            // 下标行
+            const idxRow = document.createElement('div');
+            idxRow.className = 'lis-row';
+            for (let i = 0; i < N; i++) {
+                const b = document.createElement('div');
+                b.className = 'lis-box idx';
+                b.textContent = '[' + i + ']';
+                idxRow.appendChild(b);
+            }
+            wrap.appendChild(idxRow);
+
+            visual.appendChild(wrap);
+
+            // 画箭头: 从 cmpJ 指向 curI (同步绘制, 保证进入步进快照)
+            if (curI !== null && cmpJ !== null) {
+                drawArrow(curI, cmpJ, wrap);
+            }
+        }
+
+        function drawArrow(curI, cmpJ, wrap) {
+            const svg = document.getElementById('arrow-svg');
+            if (!svg) return;
+            const W = wrap.clientWidth, H = 84;
+            svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+            const left = rowLeft(W, N);
+            const cx = i => left + i * (BOX_W + GAP) + BOX_W / 2;
+            const x1 = cx(cmpJ), x2 = cx(curI);
+            const ok = data[cmpJ] < data[curI];
+            const color = ok ? '#ff4d6d' : '#888888';
+            // 折线: 从 j 底部往下, 横向, 再向上到 i 底部
+            const yTop = 6, yMid = H - 22;
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', `M ${x1} ${yTop} L ${x1} ${yMid} L ${x2 - (ok ? 0 : 0)} ${yMid} L ${x2} ${yTop + 8}`);
+            path.setAttribute('fill', 'none');
+            path.setAttribute('stroke', color);
+            path.setAttribute('stroke-width', ok ? 3 : 2);
+            path.setAttribute('marker-end', 'url(#arrowhead)');
+            svg.appendChild(path);
+            const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+            defs.innerHTML = `<marker id="arrowhead" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="${color}"/></marker>`;
+            svg.appendChild(defs);
+            if (!ok) {
+                // 失败比较: 中点画 ✕
+                const mx = (x1 + x2) / 2, my = yMid;
+                const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                t.setAttribute('x', mx); t.setAttribute('y', my + 6);
+                t.setAttribute('fill', '#888'); t.setAttribute('font-size', '22');
+                t.setAttribute('text-anchor', 'middle'); t.setAttribute('font-weight', 'bold');
+                t.textContent = '✕';
+                svg.appendChild(t);
+            } else {
+                // 成功转移: 标注 dp 值
+                const mx = (x1 + x2) / 2, my = yMid;
+                const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                t.setAttribute('x', mx); t.setAttribute('y', my - 6);
+                t.setAttribute('fill', '#ff4d6d'); t.setAttribute('font-size', '13');
+                t.setAttribute('text-anchor', 'middle'); t.setAttribute('font-weight', 'bold');
+                t.textContent = `m[${cmpJ}]+1=${dp[cmpJ] + 1}`;
+                svg.appendChild(t);
+            }
+        }
+
+        function renderFinal(bestLen) {
+            render(null, null, []);
+            for (let i = 0; i < N; i++) {
+                const b = document.getElementById('m-' + i);
+                if (dp[i] === bestLen) b.classList.add('ans');
+            }
+        }
+
+        function* algorithmGen() {
+            log('dp 定义: m[i] = 以 nums[i] 结尾的最长上升子序列长度');
+            log('初始: 所有 m[i] = 1 (自身单独成序列)');
+            render(null, null, []);
+            yield;
+            for (let i = 1; i < N; i++) {
+                const trail = [];
+                for (let j = 0; j < i; j++) {
+                    const ok = data[j] < data[i];
+                    trail.push(j);
+                    render(i, j, trail.slice(0, -1));
+                    // 当前比较对高亮
+                    document.getElementById('n-' + j)?.classList.add('cmp');
+                    statusBar.textContent = ok
+                        ? `nums[${j}]=${data[j]} < nums[${i}]=${data[i]} ✓ 可转移: m[${i}] = max(m[${i}], m[${j}]+1)`
+                        : `nums[${j}]=${data[j]} ≥ nums[${i}]=${data[i]} ✕ 无法转移`;
+                    log(ok
+                        ? `比较 j=${j}: ${data[j]} < ${data[i]}, 尝试 m[${i}] = max(${dp[i]}, m[${j}]+1=${dp[j] + 1})`
+                        : `比较 j=${j}: ${data[j]} >= ${data[i]}, 跳过`);
+                    yield;
+                    if (ok && dp[j] + 1 > dp[i]) {
+                        dp[i] = dp[j] + 1;
+                        render(i, j, []);
+                        document.getElementById('m-' + i)?.classList.add('updated');
+                        log(`更新 m[${i}] = ${dp[i]}`);
+                        yield;
+                    }
+                }
+                render(i, null, []);
+                statusBar.textContent = `i=${i} 处理完成, m[${i}] = ${dp[i]}`;
+                yield;
+            }
+            const bestLen = Math.max(...dp);
+            renderFinal(bestLen);
+            statusBar.textContent = `LIS 长度 = ${bestLen} ✓`;
+            log(`计算完成, LIS 长度 = ${bestLen}`);
+            const ends = dp.map((v, i) => v === bestLen ? i : -1).filter(i => i >= 0);
+            log(`m 值等于 ${bestLen} 的位置: [${ends.join(', ')}], 以这些元素结尾可得最长子序列`);
+        }
+    </script>
+</body>
+</html>

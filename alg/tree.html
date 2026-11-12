@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C++树结构遍历可视化 | 数据结构分析</title>
+    <!-- Tailwind CSS v3 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#10b981',
+                        accent: '#f97316',
+                        dark: {
+                            100: '#1e293b',
+                            200: '#172033',
+                            300: '#0f172a',
+                            400: '#0c1220',
+                            500: '#080c16'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .node {
+                @apply w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center text-lg font-bold shadow-md transition-all duration-300;
+            }
+            .node-highlight {
+                @apply bg-accent scale-110 ring-4 ring-accent/50;
+            }
+            .node-visited {
+                @apply bg-secondary;
+            }
+            .btn-traverse {
+                @apply px-4 py-2 rounded-lg font-medium transition-all duration-300 flex items-center justify-center gap-2;
+            }
+            .btn-preorder {
+                @apply bg-blue-600 hover:bg-blue-700 text-white;
+            }
+            .btn-inorder {
+                @apply bg-green-600 hover:bg-green-700 text-white;
+            }
+            .btn-postorder {
+                @apply bg-orange-600 hover:bg-orange-700 text-white;
+            }
+            .btn-disabled {
+                @apply opacity-50 cursor-not-allowed;
+            }
+            .traversal-step {
+                @apply px-3 py-1 rounded-full text-sm font-medium;
+            }
+            .traversal-path {
+                @apply stroke-accent stroke-2;
+            }
+            .card-border {
+                @apply border border-gray-700;
+            }
+            .card-gradient {
+                @apply bg-gradient-to-br from-dark-200 to-dark-300;
+            }
+            .glow {
+                @apply shadow-lg shadow-primary/10;
+            }
+            .glow-blue {
+                @apply shadow-lg shadow-blue-500/10;
+            }
+            .glow-green {
+                @apply shadow-lg shadow-green-500/10;
+            }
+            .glow-orange {
+                @apply shadow-lg shadow-orange-500/10;
+            }
+            .grid-bg {
+                background-image: 
+                    linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+                background-size: 20px 20px;
+            }
+        }
+    </style>
+</head>
+<body class="bg-dark-400 text-gray-200 min-h-screen grid-bg">
+    <!-- 粒子背景 -->
+    <div id="particleBackground" class="fixed inset-0 z-0 opacity-20"></div>
+
+    <div class="container mx-auto px-4 py-8 relative z-10">
+        <header class="mb-8">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h1 class="text-3xl font-bold text-white mb-1 flex items-center gap-2">
+                        <i class="fa fa-code-fork text-primary"></i>
+                        C++树结构遍历可视化
+                    </h1>
+                    <p class="text-gray-400">通过可视化方式展示树的前序、中序、后序遍历过程</p>
+                </div>
+                <div class="flex items-center gap-2 bg-dark-300 rounded-lg px-4 py-2 card-border">
+                    <i class="fa fa-info-circle text-primary"></i>
+                    <span class="text-sm">数据结构学习工具</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- 控制面板 -->
+            <div class="lg:col-span-4 space-y-6">
+                <!-- 节点设置卡片 -->
+                <div class="bg-dark-200 rounded-lg p-5 card-border glow">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold text-white">节点设置</h2>
+                        <div class="p-2 rounded-full bg-primary/10 text-primary">
+                            <i class="fa fa-cogs"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <label for="nodeCount" class="block text-sm font-medium text-gray-400 mb-2">节点数量</label>
+                        <div class="flex items-center gap-4">
+                            <input 
+                                type="range" 
+                                id="nodeCount" 
+                                min="3" 
+                                max="15" 
+                                value="7" 
+                                class="w-full h-2 bg-dark-300 rounded-lg appearance-none cursor-pointer"
+                            >
+                            <div class="flex items-center gap-2">
+                                <button id="decreaseNodeCount" class="w-8 h-8 flex items-center justify-center rounded-full bg-dark-300 hover:bg-dark-100 transition-colors card-border">
+                                    <i class="fa fa-minus text-gray-400"></i>
+                                </button>
+                                <span id="nodeCountValue" class="text-lg font-semibold text-white w-8 text-center">7</span>
+                                <button id="increaseNodeCount" class="w-8 h-8 flex items-center justify-center rounded-full bg-dark-300 hover:bg-dark-100 transition-colors card-border">
+                                    <i class="fa fa-plus text-gray-400"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">拖动滑块设置树的节点数量 (3-15)</p>
+                    </div>
+
+                    <button 
+                        id="generateTree" 
+                        class="w-full bg-primary hover:bg-primary/90 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-300 flex items-center justify-center gap-2"
+                    >
+                        <i class="fa fa-refresh"></i>
+                        生成树结构
+                    </button>
+                </div>
+
+                <!-- 遍历方式卡片 -->
+                <div class="bg-dark-200 rounded-lg p-5 card-border glow">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold text-white">遍历方式</h2>
+                        <div class="p-2 rounded-full bg-primary/10 text-primary">
+                            <i class="fa fa-exchange"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-3 mb-4">
+                        <button 
+                            id="preorderBtn" 
+                            class="btn-traverse btn-preorder w-full glow-blue"
+                        >
+                            <i class="fa fa-arrow-right"></i>
+                            前序遍历 (根-左-右)
+                        </button>
+                        <button 
+                            id="inorderBtn" 
+                            class="btn-traverse btn-inorder w-full glow-green"
+                        >
+                            <i class="fa fa-arrow-right"></i>
+                            中序遍历 (左-根-右)
+                        </button>
+                        <button 
+                            id="postorderBtn" 
+                            class="btn-traverse btn-postorder w-full glow-orange"
+                        >
+                            <i class="fa fa-arrow-right"></i>
+                            后序遍历 (左-右-根)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 遍历控制卡片 -->
+                <div id="traversalControls" class="bg-dark-200 rounded-lg p-5 card-border glow hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold text-white">遍历控制</h2>
+                        <div class="p-2 rounded-full bg-primary/10 text-primary">
+                            <i class="fa fa-sliders"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="text-sm text-gray-400">当前步骤:</div>
+                        <span id="currentStep" class="traversal-step bg-primary text-white">0/0</span>
+                    </div>
+                    
+                    <div class="flex gap-2 mb-4">
+                        <button 
+                            id="prevStep" 
+                            class="btn-traverse bg-dark-300 hover:bg-dark-100 text-white flex-1 card-border"
+                        >
+                            <i class="fa fa-step-backward"></i>
+                            上一步
+                        </button>
+                        <button 
+                            id="playPauseBtn" 
+                            class="btn-traverse bg-primary hover:bg-primary/90 text-white flex-1"
+                        >
+                            <i class="fa fa-play"></i>
+                            播放
+                        </button>
+                        <button 
+                            id="nextStep" 
+                            class="btn-traverse bg-dark-300 hover:bg-dark-100 text-white flex-1 card-border"
+                        >
+                            <i class="fa fa-step-forward"></i>
+                            下一步
+                        </button>
+                    </div>
+                    
+                    <div>
+                        <label for="speedControl" class="block text-xs font-medium text-gray-400 mb-1">速度控制</label>
+                        <input 
+                            type="range" 
+                            id="speedControl" 
+                            min="1" 
+                            max="5" 
+                            value="3" 
+                            class="w-full h-2 bg-dark-300 rounded-lg appearance-none cursor-pointer"
+                        >
+                        <div class="flex justify-between text-xs text-gray-500 mt-1">
+                            <span>慢</span>
+                            <span>快</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 重置按钮 -->
+                <button 
+                    id="resetBtn" 
+                    class="w-full bg-dark-300 hover:bg-dark-100 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-300 flex items-center justify-center gap-2 card-border"
+                >
+                    <i class="fa fa-undo"></i>
+                    重置
+                </button>
+            </div>
+
+            <!-- 可视化区域 -->
+            <div class="lg:col-span-8 space-y-6">
+                <!-- 树结构可视化卡片 -->
+                <div class="bg-dark-200 rounded-lg p-5 card-border glow">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold text-white">树结构可视化</h2>
+                        <div id="traversalType" class="hidden items-center gap-2">
+                            <span class="text-sm text-gray-400">当前遍历:</span>
+                            <span id="currentTraversal" class="traversal-step bg-blue-500 text-white">前序遍历</span>
+                        </div>
+                    </div>
+                    
+                    <div class="relative h-[500px]">
+                        <canvas 
+                            id="treeCanvas" 
+                            class="w-full h-full rounded-lg bg-dark-300"
+                            width="800" 
+                            height="500"
+                        ></canvas>
+                        <div id="canvasPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center text-gray-500">
+                            <i class="fa fa-tree text-5xl mb-2"></i>
+                            <p>请设置节点数量并点击"生成树结构"</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 遍历结果卡片 -->
+                <div id="traversalResult" class="bg-dark-200 rounded-lg p-5 card-border glow hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold text-white">遍历结果</h2>
+                        <div class="p-2 rounded-full bg-primary/10 text-primary">
+                            <i class="fa fa-list-ol"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-dark-300 rounded-lg p-4 card-border">
+                        <div class="flex items-center gap-2 mb-3">
+                            <i class="fa fa-arrow-right text-primary"></i>
+                            <span class="text-sm font-medium text-gray-400">访问序列:</span>
+                        </div>
+                        <div id="traversalSequence" class="text-lg font-mono tracking-wide pl-6 border-l-2 border-primary"></div>
+                        
+                        <div class="mt-6">
+                            <div class="flex items-center gap-2 mb-3">
+                                <i class="fa fa-code text-primary"></i>
+                                <span class="text-sm font-medium text-gray-400">遍历统计:</span>
+                            </div>
+                            <div class="grid grid-cols-3 gap-4 pl-6">
+                                <div class="bg-dark-200 p-3 rounded-lg card-border">
+                                    <div class="text-xs text-gray-500 mb-1">节点总数</div>
+                                    <div id="totalNodes" class="text-xl font-bold text-white">0</div>
+                                </div>
+                                <div class="bg-dark-200 p-3 rounded-lg card-border">
+                                    <div class="text-xs text-gray-500 mb-1">访问步骤</div>
+                                    <div id="totalSteps" class="text-xl font-bold text-white">0</div>
+                                </div>
+                                <div class="bg-dark-200 p-3 rounded-lg card-border">
+                                    <div class="text-xs text-gray-500 mb-1">树深度</div>
+                                    <div id="treeDepth" class="text-xl font-bold text-white">0</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 粒子背景效果
+        document.addEventListener('DOMContentLoaded', function() {
+            const canvas = document.createElement('canvas');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            document.getElementById('particleBackground').appendChild(canvas);
+
+            const ctx = canvas.getContext('2d');
+            const particles = [];
+            const particleCount = 80;
+
+            // 创建粒子
+            for (let i = 0; i < particleCount; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    radius: Math.random() * 1.5 + 0.5,
+                    color: `rgba(${Math.floor(Math.random()*80+180)}, ${Math.floor(Math.random()*80+180)}, ${Math.floor(Math.random()*80+180)}, 0.5)`,
+                    speedX: Math.random() * 0.3 - 0.15,
+                    speedY: Math.random() * 0.3 - 0.15
+                });
+            }
+
+            // 鼠标位置追踪
+            let mouseX = 0, mouseY = 0;
+            document.addEventListener('mousemove', (e) => {
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+            });
+
+            // 动画循环
+            function animate() {
+                requestAnimationFrame(animate);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+                particles.forEach(p => {
+                    // 更新位置
+                    p.x += p.speedX;
+                    p.y += p.speedY;
+                
+                    // 边界检查
+                    if (p.x > canvas.width) p.x = 0;
+                    if (p.x < 0) p.x = canvas.width;
+                    if (p.y > canvas.height) p.y = 0;
+                    if (p.y < 0) p.y = canvas.height;
+                
+                    // 鼠标交互 - 靠近鼠标的粒子微微偏移
+                    const dx = p.x - mouseX;
+                    const dy = p.y - mouseY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 100) {
+                        p.x += dx * 0.01;
+                        p.y += dy * 0.01;
+                    }
+                
+                    // 绘制粒子
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = p.color;
+                    ctx.fill();
+                });
+            
+                // 连接临近粒子
+                connectParticles();
+            }
+
+            // 连接临近的粒子
+            function connectParticles() {
+                for (let i = 0; i < particles.length; i++) {
+                    for (let j = i + 1; j < particles.length; j++) {
+                        const dx = particles[i].x - particles[j].x;
+                        const dy = particles[i].y - particles[j].y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                        if (dist < 100) {
+                            ctx.beginPath();
+                            ctx.strokeStyle = `rgba(100, 149, 237, ${0.15 * (1 - dist/100)})`;
+                            ctx.lineWidth = 0.5;
+                            ctx.moveTo(particles[i].x, particles[i].y);
+                            ctx.lineTo(particles[j].x, particles[j].y);
+                            ctx.stroke();
+                        }
+                    }
+                }
+            }
+
+            // 启动动画
+            animate();
+
+            // 响应窗口大小变化
+            window.addEventListener('resize', () => {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            });
+        });
+
+        // 树节点类
+        class TreeNode {
+            constructor(value, x, y) {
+                this.value = value;
+                this.left = null;
+                this.right = null;
+                this.x = x;
+                this.y = y;
+                this.visited = false;
+                this.highlighted = false;
+            }
+        }
+
+        // 树可视化类
+        class TreeVisualizer {
+            constructor(canvasId) {
+                this.canvas = document.getElementById(canvasId);
+                this.ctx = this.canvas.getContext('2d');
+                this.root = null;
+                this.nodeCount = 7;
+                this.nodes = [];
+                this.traversalSteps = [];
+                this.currentStep = 0;
+                this.animationId = null;
+                this.isPlaying = false;
+                this.speed = 3; // 1-5, 5最快
+                this.traversalType = null;
+                
+                // 调整Canvas大小以匹配容器
+                this.resizeCanvas();
+                window.addEventListener('resize', () => this.resizeCanvas());
+            }
+
+            // 调整Canvas大小
+            resizeCanvas() {
+                const container = this.canvas.parentElement;
+                this.canvas.width = container.clientWidth;
+                this.canvas.height = container.clientHeight;
+                
+                // 如果已有树，重新绘制
+                if (this.root) {
+                    this.calculateNodePositions();
+                    this.drawTree();
+                }
+            }
+
+            // 生成随机树
+            generateTree(nodeCount) {
+                this.nodeCount = nodeCount;
+                this.nodes = [];
+                this.traversalSteps = [];
+                this.currentStep = 0;
+                this.traversalType = null;
+                
+                // 重置UI
+                this.resetUI();
+                
+                // 生成节点值数组 (1到nodeCount的随机排列)
+                const values = Array.from({length: nodeCount}, (_, i) => i + 1);
+                for (let i = values.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [values[i], values[j]] = [values[j], values[i]];
+                }
+                
+                // 构建树 (使用数组表示法构建完全二叉树)
+                this.root = this.buildTreeFromArray(values, 0, values.length - 1);
+                
+                // 计算节点位置
+                this.calculateNodePositions();
+                
+                // 绘制树
+                this.drawTree();
+                
+                // 隐藏占位符
+                document.getElementById('canvasPlaceholder').style.display = 'none';
+                
+                // 更新统计信息
+                document.getElementById('totalNodes').textContent = nodeCount;
+                document.getElementById('treeDepth').textContent = this.getTreeHeight(this.root);
+                
+                return this.root;
+            }
+
+            // 从有序数组构建平衡二叉搜索树
+            buildTreeFromArray(values, start, end) {
+                if (start > end) return null;
+                
+                const mid = Math.floor((start + end) / 2);
+                const node = new TreeNode(values[mid], 0, 0); // 位置将在calculateNodePositions中计算
+                this.nodes.push(node);
+                
+                node.left = this.buildTreeFromArray(values, start, mid - 1);
+                node.right = this.buildTreeFromArray(values, mid + 1, end);
+                
+                return node;
+            }
+
+            // 计算节点在Canvas上的位置
+            calculateNodePositions() {
+                const maxWidth = this.canvas.width;
+                const maxHeight = this.canvas.height;
+                const treeHeight = this.getTreeHeight(this.root);
+                const nodeSize = Math.max(18, Math.min(25, 35 - this.nodeCount));
+                const padding = nodeSize + 8;
+
+                // 第一步：中序遍历分配整数列坐标，保证无重叠
+                let counter = 0;
+                const assignIndex = (node, depth) => {
+                    if (!node) return;
+                    assignIndex(node.left, depth + 1);
+                    node._ix = counter++;
+                    node._iy = depth;
+                    assignIndex(node.right, depth + 1);
+                };
+                assignIndex(this.root, 0);
+
+                // 第二步：将整数坐标线性映射到canvas可用区域
+                const totalCols = counter;
+                const colStep = totalCols > 1 ? (maxWidth - padding * 2) / (totalCols - 1) : 0;
+                const rowStep = treeHeight > 1 ? (maxHeight - padding * 2) / (treeHeight - 1) : 0;
+
+                const applyPos = (node) => {
+                    if (!node) return;
+                    node.x = totalCols > 1 ? padding + node._ix * colStep : maxWidth / 2;
+                    node.y = treeHeight > 1 ? padding + node._iy * rowStep : maxHeight / 2;
+                    applyPos(node.left);
+                    applyPos(node.right);
+                };
+                applyPos(this.root);
+            }
+
+            // 递归计算节点位置（已由 calculateNodePositions 内联实现，保留兼容）
+            positionNodes(node, x, y, horizontalSpacing, levelHeight) {}
+
+            // 获取树的高度
+            getTreeHeight(node) {
+                if (!node) return 0;
+                return Math.max(this.getTreeHeight(node.left), this.getTreeHeight(node.right)) + 1;
+            }
+
+            // 绘制树
+            drawTree() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // 绘制连接线
+                this.drawConnections(this.root);
+                
+                // 绘制节点
+                this.drawNodes(this.root);
+            }
+
+            // 绘制节点间的连接线
+            drawConnections(node) {
+                if (!node) return;
+                
+                if (node.left) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(node.x, node.y);
+                    this.ctx.lineTo(node.left.x, node.left.y);
+                    this.ctx.strokeStyle = node.left.visited ? '#10b981' : 'rgba(148, 163, 184, 0.3)';
+                    this.ctx.lineWidth = node.left.highlighted ? 3 : 2;
+                    this.ctx.stroke();
+                    this.drawConnections(node.left);
+                }
+                
+                if (node.right) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(node.x, node.y);
+                    this.ctx.lineTo(node.right.x, node.right.y);
+                    this.ctx.strokeStyle = node.right.visited ? '#10b981' : 'rgba(148, 163, 184, 0.3)';
+                    this.ctx.lineWidth = node.right.highlighted ? 3 : 2;
+                    this.ctx.stroke();
+                    this.drawConnections(node.right);
+                }
+            }
+
+            // 绘制节点
+            drawNodes(node) {
+                if (!node) return;
+                
+                // 根据节点数量动态调整节点大小
+                const nodeSize = Math.max(18, Math.min(25, 35 - this.nodeCount));
+                this.ctx.beginPath();
+                this.ctx.arc(node.x, node.y, nodeSize, 0, Math.PI * 2);
+                
+                // 根据节点状态设置颜色
+                if (node.highlighted) {
+                    this.ctx.fillStyle = '#f97316'; // 高亮色
+                    this.ctx.shadowColor = '#f97316';
+                    this.ctx.shadowBlur = 15;
+                } else if (node.visited) {
+                    this.ctx.fillStyle = '#10b981'; // 已访问色
+                } else {
+                    this.ctx.fillStyle = '#3b82f6'; // 普通色
+                }
+                
+                this.ctx.fill();
+                this.ctx.shadowBlur = 0;
+                
+                // 绘制节点边框
+                this.ctx.strokeStyle = '#ffffff';
+                this.ctx.lineWidth = 2;
+                this.ctx.stroke();
+                
+                // 根据节点大小动态调整字体大小
+                const fontSize = Math.max(12, Math.min(16, 20 - this.nodeCount / 2));
+                this.ctx.fillStyle = '#ffffff';
+                this.ctx.font = `bold ${fontSize}px Inter, sans-serif`;
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'middle';
+                this.ctx.fillText(node.value, node.x, node.y);
+                
+                // 递归绘制子节点
+                this.drawNodes(node.left);
+                this.drawNodes(node.right);
+            }
+
+            // 前序遍历 (根-左-右)
+            preorderTraversal(node) {
+                if (!node) return;
+                
+                // 访问根节点
+                this.traversalSteps.push({
+                    node: node,
+                    action: 'visit',
+                    description: `访问节点 ${node.value}`
+                });
+                
+                // 递归遍历左子树
+                if (node.left) {
+                    this.traversalSteps.push({
+                        node: node.left,
+                        action: 'move',
+                        description: `移动到左子节点 ${node.left.value}`
+                    });
+                    this.preorderTraversal(node.left);
+                }
+                
+                // 递归遍历右子树
+                if (node.right) {
+                    this.traversalSteps.push({
+                        node: node.right,
+                        action: 'move',
+                        description: `移动到右子节点 ${node.right.value}`
+                    });
+                    this.preorderTraversal(node.right);
+                }
+            }
+
+            // 中序遍历 (左-根-右)
+            inorderTraversal(node) {
+                if (!node) return;
+                
+                // 递归遍历左子树
+                if (node.left) {
+                    this.traversalSteps.push({
+                        node: node.left,
+                        action: 'move',
+                        description: `移动到左子节点 ${node.left.value}`
+                    });
+                    this.inorderTraversal(node.left);
+                }
+                
+                // 访问根节点
+                this.traversalSteps.push({
+                    node: node,
+                    action: 'visit',
+                    description: `访问节点 ${node.value}`
+                });
+                
+                // 递归遍历右子树
+                if (node.right) {
+                    this.traversalSteps.push({
+                        node: node.right,
+                        action: 'move',
+                        description: `移动到右子节点 ${node.right.value}`
+                    });
+                    this.inorderTraversal(node.right);
+                }
+            }
+
+            // 后序遍历 (左-右-根)
+            postorderTraversal(node) {
+                if (!node) return;
+                
+                // 递归遍历左子树
+                if (node.left) {
+                    this.traversalSteps.push({
+                        node: node.left,
+                        action: 'move',
+                        description: `移动到左子节点 ${node.left.value}`
+                    });
+                    this.postorderTraversal(node.left);
+                }
+                
+                // 递归遍历右子树
+                if (node.right) {
+                    this.traversalSteps.push({
+                        node: node.right,
+                        action: 'move',
+                        description: `移动到右子节点 ${node.right.value}`
+                    });
+                    this.postorderTraversal(node.right);
+                }
+                
+                // 访问根节点
+                this.traversalSteps.push({
+                    node: node,
+                    action: 'visit',
+                    description: `访问节点 ${node.value}`
+                });
+            }
+
+            // 开始遍历动画
+            startTraversal(type) {
+                // 重置之前的状态
+                this.resetTraversalState();
+                
+                // 设置遍历类型
+                this.traversalType = type;
+                
+                // 生成遍历步骤
+                this.traversalSteps = [];
+                switch (type) {
+                    case 'preorder':
+                        this.preorderTraversal(this.root);
+                        break;
+                    case 'inorder':
+                        this.inorderTraversal(this.root);
+                        break;
+                    case 'postorder':
+                        this.postorderTraversal(this.root);
+                        break;
+                }
+                
+                // 更新步骤总数
+                document.getElementById('totalSteps').textContent = this.traversalSteps.length;
+                
+                // 显示遍历控制UI
+                document.getElementById('traversalControls').classList.remove('hidden');
+                document.getElementById('traversalType').classList.remove('hidden');
+                document.getElementById('traversalResult').classList.remove('hidden');
+                
+                // 更新遍历类型显示
+                const traversalNames = {
+                    'preorder': '前序遍历',
+                    'inorder': '中序遍历',
+                    'postorder': '后序遍历'
+                };
+                const traversalColors = {
+                    'preorder': 'bg-blue-500',
+                    'inorder': 'bg-green-500',
+                    'postorder': 'bg-orange-500'
+                };
+                
+                const currentTraversalEl = document.getElementById('currentTraversal');
+                currentTraversalEl.textContent = traversalNames[type];
+                currentTraversalEl.className = `traversal-step text-white ${traversalColors[type]}`;
+                
+                // 开始第一步
+                this.currentStep = 0;
+                this.updateStepUI();
+                this.applyStep(this.currentStep);
+                
+                // 启用遍历按钮
+                this.enableTraversalControls();
+            }
+
+            // 应用指定步骤
+            applyStep(stepIndex) {
+                if (stepIndex < 0 || stepIndex >= this.traversalSteps.length) return;
+                
+                // 清除之前的高亮
+                this.clearHighlights();
+                
+                const step = this.traversalSteps[stepIndex];
+                const node = step.node;
+                
+                // 根据步骤类型应用不同效果
+                switch (step.action) {
+                    case 'visit':
+                        node.visited = true;
+                        node.highlighted = true;
+                        break;
+                    case 'move':
+                        node.highlighted = true;
+                        break;
+                    case 'backtrack':
+                        node.highlighted = true;
+                        break;
+                }
+                
+                // 重绘树
+                this.drawTree();
+                
+                // 更新遍历序列显示
+                this.updateTraversalSequence();
+                
+                // 更新步骤UI
+                this.updateStepUI();
+            }
+
+            // 清除所有高亮
+            clearHighlights() {
+                this.nodes.forEach(node => {
+                    node.highlighted = false;
+                });
+            }
+
+            // 更新遍历序列显示
+            updateTraversalSequence() {
+                // 收集当前步骤之前已访问的节点值（按访问顺序）
+                const visitedNodes = [];
+                for (let i = 0; i <= this.currentStep; i++) {
+                    const step = this.traversalSteps[i];
+                    if (step.action === 'visit' && !visitedNodes.includes(step.node.value)) {
+                        visitedNodes.push(step.node.value);
+                    }
+                }
+                
+                // 更新显示
+                document.getElementById('traversalSequence').textContent = visitedNodes.join(' → ');
+            }
+
+            // 更新步骤UI
+            updateStepUI() {
+                document.getElementById('currentStep').textContent = `${this.currentStep + 1}/${this.traversalSteps.length}`;
+                
+                // 更新按钮状态
+                document.getElementById('prevStep').disabled = this.currentStep === 0;
+                document.getElementById('nextStep').disabled = this.currentStep === this.traversalSteps.length - 1;
+                
+                if (this.currentStep === 0) {
+                    document.getElementById('prevStep').classList.add('btn-disabled');
+                } else {
+                    document.getElementById('prevStep').classList.remove('btn-disabled');
+                }
+                
+                if (this.currentStep === this.traversalSteps.length - 1) {
+                    document.getElementById('nextStep').classList.add('btn-disabled');
+                } else {
+                    document.getElementById('nextStep').classList.remove('btn-disabled');
+                }
+            }
+
+            // 播放遍历动画
+            playTraversal() {
+                if (this.isPlaying) return;
+                
+                this.isPlaying = true;
+                document.getElementById('playPauseBtn').innerHTML = '<i class="fa fa-pause"></i> 暂停';
+                
+                const playNextStep = () => {
+                    if (!this.isPlaying) return;
+                    
+                    if (this.currentStep < this.traversalSteps.length - 1) {
+                        this.currentStep++;
+                        this.applyStep(this.currentStep);
+                        
+                        // 根据速度设置延迟
+                        const delay = 2500 - (this.speed * 400); // 2100ms 到 500ms
+                        this.animationId = setTimeout(playNextStep, delay);
+                    } else {
+                        // 遍历结束
+                        this.isPlaying = false;
+                        document.getElementById('playPauseBtn').innerHTML = '<i class="fa fa-play"></i> 播放';
+                    }
+                };
+                
+                // 开始播放
+                playNextStep();
+            }
+
+            // 暂停遍历动画
+            pauseTraversal() {
+                this.isPlaying = false;
+                document.getElementById('playPauseBtn').innerHTML = '<i class="fa fa-play"></i> 播放';
+                
+                if (this.animationId) {
+                    clearTimeout(this.animationId);
+                    this.animationId = null;
+                }
+            }
+
+            // 前一步
+            prevStep() {
+                if (this.currentStep > 0) {
+                    this.currentStep--;
+                    this.applyStep(this.currentStep);
+                }
+            }
+
+            // 下一步
+            nextStep() {
+                if (this.currentStep < this.traversalSteps.length - 1) {
+                    this.currentStep++;
+                    this.applyStep(this.currentStep);
+                }
+            }
+
+            // 设置动画速度
+            setSpeed(speed) {
+                this.speed = speed;
+            }
+
+            // 重置遍历状态
+            resetTraversalState() {
+                // 暂停动画
+                this.pauseTraversal();
+                
+                // 重置节点状态
+                this.nodes.forEach(node => {
+                    node.visited = false;
+                    node.highlighted = false;
+                });
+                
+                // 重绘树
+                this.drawTree();
+                
+                // 重置步骤
+                this.currentStep = 0;
+                this.traversalSteps = [];
+                
+                // 隐藏遍历控制UI
+                document.getElementById('traversalControls').classList.add('hidden');
+                document.getElementById('traversalType').classList.add('hidden');
+                document.getElementById('traversalResult').classList.add('hidden');
+                
+                // 重置遍历序列
+                document.getElementById('traversalSequence').textContent = '';
+                
+                // 禁用遍历按钮
+                this.disableTraversalControls();
+            }
+
+            // 重置UI
+            resetUI() {
+                this.resetTraversalState();
+                document.getElementById('canvasPlaceholder').style.display = 'flex';
+                
+                // 重置统计信息
+                document.getElementById('totalNodes').textContent = '0';
+                document.getElementById('totalSteps').textContent = '0';
+                document.getElementById('treeDepth').textContent = '0';
+            }
+
+            // 启用遍历控制
+            enableTraversalControls() {
+                document.getElementById('prevStep').disabled = false;
+                document.getElementById('nextStep').disabled = false;
+                document.getElementById('playPauseBtn').disabled = false;
+                document.getElementById('prevStep').classList.remove('btn-disabled');
+                document.getElementById('nextStep').classList.remove('btn-disabled');
+                document.getElementById('playPauseBtn').classList.remove('btn-disabled');
+            }
+
+            // 禁用遍历控制
+            disableTraversalControls() {
+                document.getElementById('prevStep').disabled = true;
+                document.getElementById('nextStep').disabled = true;
+                document.getElementById('playPauseBtn').disabled = true;
+                document.getElementById('prevStep').classList.add('btn-disabled');
+                document.getElementById('nextStep').classList.add('btn-disabled');
+                document.getElementById('playPauseBtn').classList.add('btn-disabled');
+            }
+        }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            // 初始化树可视化器
+            const visualizer = new TreeVisualizer('treeCanvas');
+            
+            // 获取DOM元素
+            const nodeCountSlider = document.getElementById('nodeCount');
+            const nodeCountValue = document.getElementById('nodeCountValue');
+            const generateTreeBtn = document.getElementById('generateTree');
+            const preorderBtn = document.getElementById('preorderBtn');
+            const inorderBtn = document.getElementById('inorderBtn');
+            const postorderBtn = document.getElementById('postorderBtn');
+            const resetBtn = document.getElementById('resetBtn');
+            const prevStepBtn = document.getElementById('prevStep');
+            const playPauseBtn = document.getElementById('playPauseBtn');
+            const nextStepBtn = document.getElementById('nextStep');
+            const speedControl = document.getElementById('speedControl');
+            
+            // 节点数量滑块事件
+            nodeCountSlider.addEventListener('input', () => {
+                nodeCountValue.textContent = nodeCountSlider.value;
+            });
+            
+            // 减少节点数量按钮事件
+            document.getElementById('decreaseNodeCount').addEventListener('click', () => {
+                if (parseInt(nodeCountSlider.value) > parseInt(nodeCountSlider.min)) {
+                    nodeCountSlider.value = parseInt(nodeCountSlider.value) - 1;
+                    nodeCountValue.textContent = nodeCountSlider.value;
+                }
+            });
+            
+            // 增加节点数量按钮事件
+            document.getElementById('increaseNodeCount').addEventListener('click', () => {
+                if (parseInt(nodeCountSlider.value) < parseInt(nodeCountSlider.max)) {
+                    nodeCountSlider.value = parseInt(nodeCountSlider.value) + 1;
+                    nodeCountValue.textContent = nodeCountSlider.value;
+                }
+            });
+            
+            // 生成树按钮事件
+            generateTreeBtn.addEventListener('click', () => {
+                const count = parseInt(nodeCountSlider.value);
+                visualizer.generateTree(count);
+                
+                // 启用遍历按钮
+                preorderBtn.disabled = false;
+                inorderBtn.disabled = false;
+                postorderBtn.disabled = false;
+                preorderBtn.classList.remove('btn-disabled');
+                inorderBtn.classList.remove('btn-disabled');
+                postorderBtn.classList.remove('btn-disabled');
+            });
+            
+            // 前序遍历按钮事件
+            preorderBtn.addEventListener('click', () => {
+                visualizer.startTraversal('preorder');
+            });
+            
+            // 中序遍历按钮事件
+            inorderBtn.addEventListener('click', () => {
+                visualizer.startTraversal('inorder');
+            });
+            
+            // 后序遍历按钮事件
+            postorderBtn.addEventListener('click', () => {
+                visualizer.startTraversal('postorder');
+            });
+            
+            // 重置按钮事件
+            resetBtn.addEventListener('click', () => {
+                visualizer.resetUI();
+                
+                // 禁用遍历按钮
+                preorderBtn.disabled = true;
+                inorderBtn.disabled = true;
+                postorderBtn.disabled = true;
+                preorderBtn.classList.add('btn-disabled');
+                inorderBtn.classList.add('btn-disabled');
+                postorderBtn.classList.add('btn-disabled');
+            });
+            
+            // 上一步按钮事件
+            prevStepBtn.addEventListener('click', () => {
+                visualizer.prevStep();
+            });
+            
+            // 播放/暂停按钮事件
+            playPauseBtn.addEventListener('click', () => {
+                if (visualizer.isPlaying) {
+                    visualizer.pauseTraversal();
+                } else {
+                    visualizer.playTraversal();
+                }
+            });
+            
+            // 下一步按钮事件
+            nextStepBtn.addEventListener('click', () => {
+                visualizer.nextStep();
+            });
+            
+            // 速度控制滑块事件
+            speedControl.addEventListener('input', () => {
+                visualizer.setSpeed(parseInt(speedControl.value));
+            });
+            
+            // 初始禁用遍历按钮
+            preorderBtn.disabled = true;
+            inorderBtn.disabled = true;
+            postorderBtn.disabled = true;
+            preorderBtn.classList.add('btn-disabled');
+            inorderBtn.classList.add('btn-disabled');
+            postorderBtn.classList.add('btn-disabled');
+            
+            // 初始禁用遍历控制按钮
+            visualizer.disableTraversalControls();
+        });
+    </script>
+</body>
+</html>

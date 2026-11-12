@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
+    <title>赛博朋克活动选择算法演示</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/tailwindcss/3.4.1/tailwind.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tsparticles/engine@2/tsparticles.engine.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/tsparticles-engine/2.12.0/tsparticles.engine.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tsparticles/preset-links@2/tsparticles.preset.links.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/tsparticles-preset-links/2.12.0/tsparticles.preset.links.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Courier New', 'Courier', 'monospace', 'system-ui'] },
+                    colors: {
+                        cyber: {
+                            black: '#020205', dark: '#0a0a12', blue: '#00f3ff', pink: '#ff00ff',
+                            purple: '#bc13fe', yellow: '#ffee00', green: '#00ff9f',
+                        }
+                    },
+                    boxShadow: {
+                        'neon-blue': '0 0 5px #00f3ff, 0 0 10px #00f3ff',
+                        'neon-pink': '0 0 5px #ff00ff, 0 0 10px #ff00ff',
+                        'neon-green': '0 0 5px #00ff9f, 0 0 10px #00ff9f',
+                        'neon-purple': '0 0 5px #bc13fe, 0 0 10px #bc13fe',
+                    },
+                    animation: {
+                        'glitch': 'glitch 1s linear infinite',
+                        'pulse-fast': 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    },
+                    keyframes: {
+                        glitch: {
+                            '2%, 64%': { transform: 'translate(2px,0) skew(0deg)' },
+                            '4%, 60%': { transform: 'translate(-2px,0) skew(0deg)' },
+                            '62%': { transform: 'translate(0,0) skew(5deg)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #020205; color: #e0e0e0; touch-action: manipulation; overscroll-behavior: none; }
+        #tsparticles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+
+        .sidebar-cyber { background: rgba(10, 10, 18, 0.92); backdrop-filter: blur(16px); border-top: 1px solid rgba(0, 243, 255, 0.3); box-shadow: 0 -5px 20px rgba(0, 243, 255, 0.1); }
+        @media (min-width: 768px) { .sidebar-cyber { border-top: none; border-right: 2px solid #00f3ff; } }
+
+        .btn-cyber { position: relative; background: transparent; border: 2px solid; transition: all 0.2s; font-family: 'Courier New', monospace; user-select: none; }
+        .btn-cyber-blue { border-color: #00f3ff; color: #00f3ff; text-shadow: 0 0 5px #00f3ff; }
+        .btn-cyber-blue:active { background: #00f3ff; color: #000; box-shadow: 0 0 20px #00f3ff; transform: scale(0.96); }
+        @media(hover: hover) { .btn-cyber-blue:hover { background: #00f3ff; color: #000; box-shadow: 0 0 20px #00f3ff; } }
+
+        .btn-cyber-pink { border-color: #ff00ff; color: #ff00ff; text-shadow: 0 0 5px #ff00ff; }
+        .btn-cyber-pink:active { background: #ff00ff; color: #000; box-shadow: 0 0 20px #ff00ff; transform: scale(0.96); }
+        @media(hover: hover) { .btn-cyber-pink:hover { background: #ff00ff; color: #000; box-shadow: 0 0 20px #ff00ff; } }
+
+        .btn-cyber-green { border-color: #00ff9f; color: #00ff9f; text-shadow: 0 0 5px #00ff9f; }
+        .btn-cyber-green:active { background: #00ff9f; color: #000; box-shadow: 0 0 20px #00ff9f; transform: scale(0.96); }
+        @media(hover: hover) { .btn-cyber-green:hover { background: #00ff9f; color: #000; box-shadow: 0 0 20px #00ff9f; } }
+
+        .btn-cyber-purple { border-color: #bc13fe; color: #bc13fe; text-shadow: 0 0 5px #bc13fe; }
+        .btn-cyber-purple:active { background: #bc13fe; color: #000; box-shadow: 0 0 20px #bc13fe; transform: scale(0.96); }
+        @media(hover: hover) { .btn-cyber-purple:hover { background: #bc13fe; color: #000; box-shadow: 0 0 20px #bc13fe; } }
+
+        .activity-table { width: 100%; border-collapse: collapse; font-size: 10px; text-align: center; }
+        .activity-table th, .activity-table td { border: 1px solid rgba(0, 243, 255, 0.3); padding: 4px; }
+        .activity-table th { color: #ff00ff; background: rgba(255,0,255,0.1); }
+        .activity-table td.selected { color: #00ff9f; font-weight: bold; text-shadow: 0 0 5px #00ff9f; background: rgba(0,255,159,0.15); }
+        .activity-table td.rejected { color: #ff0055; opacity: 0.5; }
+        .activity-table td.current { color: #ffee00; font-weight: bold; text-shadow: 0 0 5px #ffee00; background: rgba(255,238,0,0.15); }
+
+        canvas#timelineCanvas { background: radial-gradient(circle at center, rgba(0,243,255,0.05) 0%, transparent 70%); }
+
+        ::-webkit-scrollbar { width: 4px; height: 4px;}
+        ::-webkit-scrollbar-track { background: #0a0a12; }
+        ::-webkit-scrollbar-thumb { background: #00f3ff; border-radius: 2px; }
+    </style>
+</head>
+<body class="overflow-hidden flex flex-col-reverse md:flex-row h-screen w-screen font-mono">
+
+    <div id="tsparticles"></div>
+
+    <!-- 左侧控制面板 -->
+    <aside class="w-full md:w-[380px] sidebar-cyber flex flex-col z-20 flex-shrink-0 h-[45%] md:h-full">
+        <!-- 标题 -->
+        <div class="hidden md:block p-5 border-b border-cyber-blue/30 relative overflow-hidden">
+            <h1 class="text-3xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyber-blue to-cyber-purple drop-shadow-[0_0_10px_rgba(0,243,255,0.5)]">GREEDY_OS</h1>
+            <p class="text-[10px] text-cyber-blue/70 mt-1 tracking-[0.2em]">ACTIVITY SELECTION</p>
+        </div>
+        <div class="md:hidden w-full pt-2 pb-1 flex justify-center"><div class="w-12 h-1 bg-cyber-blue/30 rounded-full"></div></div>
+
+        <div class="flex-1 overflow-y-auto p-4 space-y-4">
+
+            <!-- 活动管理 -->
+            <div class="space-y-2">
+                <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">>> 活动管理 (Activities)</label>
+                <div class="flex gap-1">
+                    <input type="number" id="activity-start" placeholder="开始" class="w-1/3 bg-cyber-black/50 border border-gray-600 text-white text-center py-2 text-sm outline-none focus:border-cyber-blue">
+                    <input type="number" id="activity-end" placeholder="结束" class="w-1/3 bg-cyber-black/50 border border-gray-600 text-white text-center py-2 text-sm outline-none focus:border-cyber-blue">
+                    <input type="text" id="activity-name" placeholder="名称" class="w-1/3 bg-cyber-black/50 border border-gray-600 text-cyber-pink text-center py-2 text-sm outline-none focus:border-cyber-pink">
+                </div>
+                <button onclick="addActivity()" class="btn-cyber btn-cyber-blue w-full py-2 text-sm font-bold">
+                    [+] 添加活动 (Add Activity)
+                </button>
+                <button onclick="clearActivities()" class="btn-cyber btn-cyber-pink w-full py-2 text-sm font-bold">
+                    清空所有活动
+                </button>
+            </div>
+
+            <!-- 自动生成 -->
+            <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-800">
+                <div class="flex gap-1 col-span-2">
+                    <input type="number" id="random-count" value="8" min="3" max="15" class="w-12 bg-cyber-black/50 border border-gray-600 text-center text-white text-xs outline-none">
+                    <button onclick="generateRandomActivities()" class="btn-cyber btn-cyber-green flex-1 py-2 text-xs font-bold">
+                        生成随机活动
+                    </button>
+                </div>
+                <button onclick="loadExample1()" class="btn-cyber btn-cyber-purple py-2 text-xs font-bold">
+                    示例1: 经典
+                </button>
+                <button onclick="loadExample2()" class="btn-cyber btn-cyber-purple py-2 text-xs font-bold">
+                    示例2: 复杂
+                </button>
+            </div>
+
+            <!-- 贪心策略选择 -->
+            <div class="space-y-2 pt-2 border-t border-gray-800">
+                <label class="text-[10px] text-cyber-green font-bold uppercase tracking-widest">>> 贪心策略 (Greedy Strategy)</label>
+                <select id="strategy-select" class="w-full bg-cyber-black/50 border-2 border-cyber-green text-cyber-green py-2 px-2 text-sm font-bold outline-none">
+                    <option value="earliest_finish">最早结束时间 (Earliest Finish)</option>
+                    <option value="earliest_start">最早开始时间 (Earliest Start)</option>
+                    <option value="shortest_duration">最短持续时间 (Shortest Duration)</option>
+                    <option value="least_conflicts">最少冲突 (Least Conflicts)</option>
+                </select>
+                <button onclick="runGreedy()" class="btn-cyber btn-cyber-green w-full py-3 text-sm font-bold">
+                    >> 执行贪心算法 <<
+                </button>
+                <button onclick="resetVisualization()" class="btn-cyber border-gray-400 text-gray-300 w-full py-2 text-xs font-bold hover:border-white hover:text-white">
+                    重置可视化
+                </button>
+            </div>
+
+            <!-- 算法说明 -->
+            <div class="space-y-2 pt-2 border-t border-gray-800">
+                <label class="text-[10px] text-cyber-pink font-bold uppercase tracking-widest">>> 贪心性质 (Greedy Property)</label>
+                <div id="strategy-explanation" class="text-[10px] text-gray-300 bg-black/60 border border-cyber-pink/30 p-3 leading-relaxed">
+                    <p class="text-cyber-blue font-bold mb-1">最早结束时间策略：</p>
+                    <p>• 贪心选择性质：每次选择结束时间最早的活动</p>
+                    <p>• 最优子结构：剩余问题仍是活动选择问题</p>
+                    <p>• 正确性证明：最早结束留给后续活动更多空间</p>
+                </div>
+            </div>
+
+            <!-- 输出日志 -->
+            <div class="hidden md:block flex-1 min-h-[120px] bg-black/80 border border-gray-700 p-2 text-[10px] overflow-y-auto font-mono relative">
+                <div class="absolute top-0 right-0 px-1 bg-cyber-blue text-black font-bold">STD::OUT</div>
+                <div id="log-box" class="space-y-1 mt-4 text-gray-400">
+                    <div class="text-cyber-green">> Greedy System Initialized.</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 右侧可视化区域 -->
+    <main class="flex-1 relative flex flex-col items-center overflow-hidden z-10 h-[55%] md:h-full">
+        <!-- 时间轴画布 -->
+        <div class="w-full h-[65%] md:h-[70%] relative border-b border-cyber-blue/20">
+            <canvas id="timelineCanvas" class="w-full h-full"></canvas>
+
+            <div class="absolute top-4 left-4 pointer-events-none">
+                <h2 class="text-2xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-500 opacity-50">TIMELINE</h2>
+                <p id="algo-status" class="text-[10px] text-cyber-blue font-bold tracking-widest mt-1">READY</p>
+            </div>
+
+            <!-- 图例 -->
+            <div class="absolute top-4 right-4 bg-black/80 border border-cyber-blue/30 p-2 text-[10px] space-y-1">
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 border-2 border-gray-500"></div>
+                    <span class="text-gray-400">待处理</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 bg-cyber-yellow border-2 border-cyber-yellow"></div>
+                    <span class="text-cyber-yellow">当前考察</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 bg-cyber-green border-2 border-cyber-green"></div>
+                    <span class="text-cyber-green">已选择</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 bg-red-900/50 border-2 border-red-500"></div>
+                    <span class="text-red-400">已拒绝</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 活动数据表格 -->
+        <div class="w-full h-[35%] md:h-[30%] bg-cyber-dark/80 flex flex-col overflow-hidden border-t border-cyber-blue/50">
+            <div class="flex-1 p-2 md:p-4 overflow-auto">
+                <h3 class="text-[10px] md:text-xs text-cyber-pink font-bold uppercase mb-2">>> 活动列表 (Activity List)</h3>
+                <div class="overflow-auto">
+                    <table id="activity-table" class="activity-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>名称</th>
+                                <th>开始时间</th>
+                                <th>结束时间</th>
+                                <th>持续时间</th>
+                                <th>状态</th>
+                            </tr>
+                        </thead>
+                        <tbody id="activity-tbody">
+                            <tr><td colspan="6" class="text-gray-600">暂无活动</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // --- 核心数据结构 ---
+        let activities = []; // {id, name, start, end, status: 'pending'|'current'|'selected'|'rejected'}
+        let nextActivityId = 0;
+        let isAnimating = false;
+        let selectedActivities = [];
+
+        // --- 画布配置 ---
+        const canvas = document.getElementById('timelineCanvas');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+
+        function resize() {
+            width = canvas.offsetWidth;
+            height = canvas.offsetHeight;
+            canvas.width = width * window.devicePixelRatio;
+            canvas.height = height * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+            drawTimeline();
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // 声音系统
+        let audioCtx = null;
+        function playSound(type) {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+
+            if (type === 'add') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(800, now); osc.frequency.exponentialRampToValueAtTime(1200, now + 0.1);
+                gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now); osc.stop(now + 0.1);
+            } else if (type === 'select') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(1200, now); osc.frequency.exponentialRampToValueAtTime(1500, now + 0.15);
+                gain.gain.setValueAtTime(0.12, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now); osc.stop(now + 0.15);
+            } else if (type === 'reject') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(300, now); osc.frequency.linearRampToValueAtTime(150, now + 0.15);
+                gain.gain.setValueAtTime(0.08, now); gain.gain.linearRampToValueAtTime(0, now + 0.15);
+                osc.start(now); osc.stop(now + 0.15);
+            } else if (type === 'step') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(1000, now);
+                gain.gain.setValueAtTime(0.05, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now); osc.stop(now + 0.1);
+            } else if (type === 'error') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, now); osc.frequency.linearRampToValueAtTime(100, now + 0.2);
+                gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.2);
+                osc.start(now); osc.stop(now + 0.2);
+            }
+        }
+
+        // 日志系统
+        function log(msg, type = 'normal') {
+            const logBox = document.getElementById('log-box');
+            if(!logBox) return;
+            const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+            let color = 'text-gray-400';
+            if (type === 'success') color = 'text-cyber-green';
+            if (type === 'error') color = 'text-cyber-pink';
+            if (type === 'warn') color = 'text-cyber-yellow';
+            if (type === 'info') color = 'text-cyber-blue';
+            const div = document.createElement('div');
+            div.innerHTML = `<span class="opacity-50">[${time}]</span> <span class="${color}">${msg}</span>`;
+            logBox.prepend(div);
+        }
+
+        // --- 活动管理 ---
+        function addActivity() {
+            const start = parseInt(document.getElementById('activity-start').value);
+            const end = parseInt(document.getElementById('activity-end').value);
+            const name = document.getElementById('activity-name').value.trim() || `A${nextActivityId}`;
+
+            if (isNaN(start) || isNaN(end)) {
+                log('Error: 请输入有效的开始和结束时间', 'error');
+                playSound('error');
+                return;
+            }
+
+            if (start >= end) {
+                log('Error: 开始时间必须小于结束时间', 'error');
+                playSound('error');
+                return;
+            }
+
+            activities.push({
+                id: nextActivityId++,
+                name: name,
+                start: start,
+                end: end,
+                status: 'pending'
+            });
+
+            playSound('add');
+            log(`活动 ${name} [${start}, ${end}) 已添加`, 'success');
+            updateTable();
+            drawTimeline();
+
+            // 清空输入
+            document.getElementById('activity-start').value = '';
+            document.getElementById('activity-end').value = '';
+            document.getElementById('activity-name').value = '';
+        }
+
+        function clearActivities() {
+            activities = [];
+            selectedActivities = [];
+            nextActivityId = 0;
+            log('所有活动已清空', 'warn');
+            updateTable();
+            drawTimeline();
+        }
+
+        function generateRandomActivities() {
+            clearActivities();
+            const count = parseInt(document.getElementById('random-count').value) || 8;
+            const maxTime = 24; // 时间范围 0-24
+
+            for (let i = 0; i < count; i++) {
+                const start = Math.floor(Math.random() * (maxTime - 2));
+                const duration = Math.floor(Math.random() * 5) + 1;
+                const end = Math.min(start + duration, maxTime);
+
+                activities.push({
+                    id: nextActivityId++,
+                    name: `A${i}`,
+                    start: start,
+                    end: end,
+                    status: 'pending'
+                });
+            }
+
+            playSound('add');
+            log(`生成 ${count} 个随机活动`, 'success');
+            updateTable();
+            drawTimeline();
+        }
+
+        function loadExample1() {
+            clearActivities();
+            const examples = [
+                { name: 'A0', start: 1, end: 4 },
+                { name: 'A1', start: 3, end: 5 },
+                { name: 'A2', start: 0, end: 6 },
+                { name: 'A3', start: 5, end: 7 },
+                { name: 'A4', start: 3, end: 9 },
+                { name: 'A5', start: 5, end: 9 },
+                { name: 'A6', start: 6, end: 10 },
+                { name: 'A7', start: 8, end: 11 },
+                { name: 'A8', start: 8, end: 12 },
+                { name: 'A9', start: 2, end: 14 },
+                { name: 'A10', start: 12, end: 16 }
+            ];
+
+            examples.forEach(ex => {
+                activities.push({
+                    id: nextActivityId++,
+                    ...ex,
+                    status: 'pending'
+                });
+            });
+
+            playSound('add');
+            log('加载经典示例：11个活动', 'info');
+            updateTable();
+            drawTimeline();
+        }
+
+        function loadExample2() {
+            clearActivities();
+            const examples = [
+                { name: 'Meeting', start: 1, end: 3 },
+                { name: 'Lunch', start: 12, end: 13 },
+                { name: 'Code', start: 2, end: 5 },
+                { name: 'Review', start: 4, end: 7 },
+                { name: 'Break', start: 10, end: 11 },
+                { name: 'Deploy', start: 6, end: 9 },
+                { name: 'Test', start: 8, end: 12 },
+                { name: 'Debug', start: 13, end: 15 }
+            ];
+
+            examples.forEach(ex => {
+                activities.push({
+                    id: nextActivityId++,
+                    ...ex,
+                    status: 'pending'
+                });
+            });
+
+            playSound('add');
+            log('加载复杂示例：日程安排', 'info');
+            updateTable();
+            drawTimeline();
+        }
+
+        // --- 更新表格 ---
+        function updateTable() {
+            const tbody = document.getElementById('activity-tbody');
+
+            if (activities.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-gray-600">暂无活动</td></tr>';
+                return;
+            }
+
+            let html = '';
+            activities.forEach(a => {
+                let statusText = '待处理';
+                let statusClass = '';
+
+                if (a.status === 'selected') {
+                    statusText = '✓ 已选择';
+                    statusClass = 'selected';
+                } else if (a.status === 'rejected') {
+                    statusText = '✗ 已拒绝';
+                    statusClass = 'rejected';
+                } else if (a.status === 'current') {
+                    statusText = '→ 考察中';
+                    statusClass = 'current';
+                }
+
+                html += `<tr class="${statusClass}">
+                    <td>${a.id}</td>
+                    <td>${a.name}</td>
+                    <td>${a.start}</td>
+                    <td>${a.end}</td>
+                    <td>${a.end - a.start}</td>
+                    <td>${statusText}</td>
+                </tr>`;
+            });
+
+            tbody.innerHTML = html;
+        }
+
+        // --- 时间轴绘制 ---
+        function drawTimeline() {
+            ctx.clearRect(0, 0, width, height);
+
+            if (activities.length === 0) {
+                ctx.fillStyle = '#555';
+                ctx.font = '14px Courier New';
+                ctx.textAlign = 'center';
+                ctx.fillText('请添加活动以开始可视化', width / 2, height / 2);
+                return;
+            }
+
+            // 计算时间范围
+            const minTime = Math.min(...activities.map(a => a.start));
+            const maxTime = Math.max(...activities.map(a => a.end));
+            const timeRange = maxTime - minTime;
+
+            const padding = 80;
+            const timelineY = 50;
+            const activityHeight = 30;
+            const activitySpacing = 10;
+
+            // 绘制时间轴
+            ctx.strokeStyle = '#00f3ff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(padding, timelineY);
+            ctx.lineTo(width - padding, timelineY);
+            ctx.stroke();
+
+            // 绘制时间刻度
+            ctx.fillStyle = '#00f3ff';
+            ctx.font = '10px Courier New';
+            ctx.textAlign = 'center';
+
+            for (let t = minTime; t <= maxTime; t++) {
+                const x = padding + ((t - minTime) / timeRange) * (width - 2 * padding);
+                ctx.beginPath();
+                ctx.moveTo(x, timelineY - 5);
+                ctx.lineTo(x, timelineY + 5);
+                ctx.stroke();
+                ctx.fillText(t.toString(), x, timelineY - 10);
+            }
+
+            // 绘制活动条
+            activities.forEach((a, i) => {
+                const y = timelineY + 30 + i * (activityHeight + activitySpacing);
+                const x1 = padding + ((a.start - minTime) / timeRange) * (width - 2 * padding);
+                const x2 = padding + ((a.end - minTime) / timeRange) * (width - 2 * padding);
+                const w = x2 - x1;
+
+                // 设置颜色和样式
+                let fillColor, strokeColor, shadowBlur;
+
+                if (a.status === 'selected') {
+                    fillColor = 'rgba(0, 255, 159, 0.7)';
+                    strokeColor = '#00ff9f';
+                    shadowBlur = 15;
+                } else if (a.status === 'rejected') {
+                    fillColor = 'rgba(139, 0, 0, 0.5)';
+                    strokeColor = '#ff0055';
+                    shadowBlur = 0;
+                } else if (a.status === 'current') {
+                    fillColor = 'rgba(255, 238, 0, 0.7)';
+                    strokeColor = '#ffee00';
+                    shadowBlur = 20;
+                } else {
+                    fillColor = 'rgba(10, 10, 18, 0.8)';
+                    strokeColor = '#666';
+                    shadowBlur = 0;
+                }
+
+                // 绘制活动矩形
+                ctx.shadowBlur = shadowBlur;
+                ctx.shadowColor = strokeColor;
+                ctx.fillStyle = fillColor;
+                ctx.strokeStyle = strokeColor;
+                ctx.lineWidth = 2;
+                ctx.fillRect(x1, y, w, activityHeight);
+                ctx.strokeRect(x1, y, w, activityHeight);
+                ctx.shadowBlur = 0;
+
+                // 绘制活动名称和时间
+                ctx.fillStyle = a.status === 'rejected' ? '#666' : '#fff';
+                ctx.font = 'bold 11px Courier New';
+                ctx.textAlign = 'center';
+                ctx.fillText(a.name, x1 + w / 2, y + activityHeight / 2 - 3);
+
+                ctx.font = '9px Courier New';
+                ctx.fillText(`[${a.start},${a.end})`, x1 + w / 2, y + activityHeight / 2 + 8);
+            });
+        }
+
+        // --- 贪心算法核心 ---
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+        function resetVisualization() {
+            activities.forEach(a => a.status = 'pending');
+            selectedActivities = [];
+            document.getElementById('algo-status').innerText = 'READY';
+            updateTable();
+            drawTimeline();
+            log('可视化已重置', 'warn');
+        }
+
+        async function runGreedy() {
+            if (isAnimating) {
+                log('算法正在执行中...', 'warn');
+                return;
+            }
+
+            if (activities.length === 0) {
+                log('Error: 没有活动可选择', 'error');
+                playSound('error');
+                return;
+            }
+
+            isAnimating = true;
+            resetVisualization();
+
+            const strategy = document.getElementById('strategy-select').value;
+            updateStrategyExplanation(strategy);
+
+            log(`=== 开始执行贪心算法 ===`, 'warn');
+            log(`策略: ${getStrategyName(strategy)}`, 'info');
+
+            // 根据策略排序
+            let sortedActivities = [...activities];
+
+            switch(strategy) {
+                case 'earliest_finish':
+                    sortedActivities.sort((a, b) => a.end - b.end || a.start - b.start);
+                    log('按结束时间排序活动', 'info');
+                    break;
+                case 'earliest_start':
+                    sortedActivities.sort((a, b) => a.start - b.start || a.end - b.end);
+                    log('按开始时间排序活动', 'info');
+                    break;
+                case 'shortest_duration':
+                    sortedActivities.sort((a, b) => (a.end - a.start) - (b.end - b.start));
+                    log('按持续时间排序活动', 'info');
+                    break;
+                case 'least_conflicts':
+                    sortedActivities = sortByLeastConflicts(sortedActivities);
+                    log('按冲突数量排序活动', 'info');
+                    break;
+            }
+
+            await sleep(800);
+
+            selectedActivities = [];
+            let lastEndTime = -Infinity;
+
+            for (let i = 0; i < sortedActivities.length; i++) {
+                const activity = sortedActivities[i];
+
+                // 标记为当前考察
+                activity.status = 'current';
+                document.getElementById('algo-status').innerText = `CHECKING: ${activity.name}`;
+                updateTable();
+                drawTimeline();
+                playSound('step');
+                log(`考察活动 ${activity.name} [${activity.start}, ${activity.end})`, 'normal');
+                await sleep(1000);
+
+                // 检查是否兼容
+                if (activity.start >= lastEndTime) {
+                    // 选择该活动
+                    activity.status = 'selected';
+                    selectedActivities.push(activity);
+                    lastEndTime = activity.end;
+                    playSound('select');
+                    log(`✓ 选择活动 ${activity.name}，结束时间更新为 ${activity.end}`, 'success');
+                } else {
+                    // 拒绝该活动
+                    activity.status = 'rejected';
+                    playSound('reject');
+                    log(`✗ 拒绝活动 ${activity.name} (与已选活动冲突)`, 'error');
+                }
+
+                updateTable();
+                drawTimeline();
+                await sleep(800);
+            }
+
+            document.getElementById('algo-status').innerText = `COMPLETE: ${selectedActivities.length} SELECTED`;
+            log(`=== 算法执行完成 ===`, 'success');
+            log(`最优解：选择了 ${selectedActivities.length} 个活动`, 'success');
+            log(`活动序列: ${selectedActivities.map(a => a.name).join(' → ')}`, 'info');
+
+            isAnimating = false;
+        }
+
+        function sortByLeastConflicts(acts) {
+            // 计算每个活动的冲突数
+            const conflicts = acts.map((a, i) => {
+                let count = 0;
+                acts.forEach((b, j) => {
+                    if (i !== j && !(a.end <= b.start || b.end <= a.start)) {
+                        count++;
+                    }
+                });
+                return { activity: a, conflicts: count };
+            });
+
+            conflicts.sort((a, b) => a.conflicts - b.conflicts);
+            return conflicts.map(c => c.activity);
+        }
+
+        function getStrategyName(strategy) {
+            const names = {
+                'earliest_finish': '最早结束时间 (Earliest Finish Time)',
+                'earliest_start': '最早开始时间 (Earliest Start Time)',
+                'shortest_duration': '最短持续时间 (Shortest Duration)',
+                'least_conflicts': '最少冲突 (Least Conflicts)'
+            };
+            return names[strategy] || strategy;
+        }
+
+        function updateStrategyExplanation(strategy) {
+            const explanations = {
+                'earliest_finish': `
+                    <p class="text-cyber-blue font-bold mb-1">最早结束时间策略 (正确)：</p>
+                    <p>• <span class="text-cyber-green">贪心选择性质</span>：每次选择结束时间最早的兼容活动</p>
+                    <p>• <span class="text-cyber-green">最优子结构</span>：剩余问题仍是活动选择问题</p>
+                    <p>• <span class="text-cyber-green">正确性证明</span>：最早结束留给后续活动最多时间</p>
+                    <p class="text-cyber-pink mt-2">时间复杂度: O(n log n)</p>
+                `,
+                'earliest_start': `
+                    <p class="text-cyber-blue font-bold mb-1">最早开始时间策略 (错误)：</p>
+                    <p>• <span class="text-cyber-pink">反例</span>：可能选择持续时间很长的活动</p>
+                    <p>• <span class="text-cyber-pink">问题</span>：早开始不代表早结束</p>
+                    <p>• <span class="text-cyber-yellow">演示</span>：观察此策略的次优解</p>
+                    <p class="text-red-400 mt-2">不保证最优解！</p>
+                `,
+                'shortest_duration': `
+                    <p class="text-cyber-blue font-bold mb-1">最短持续时间策略 (错误)：</p>
+                    <p>• <span class="text-cyber-pink">反例</span>：短活动可能在中间，阻断两端</p>
+                    <p>• <span class="text-cyber-pink">问题</span>：位置比长度更重要</p>
+                    <p>• <span class="text-cyber-yellow">演示</span>：观察此策略的次优解</p>
+                    <p class="text-red-400 mt-2">不保证最优解！</p>
+                `,
+                'least_conflicts': `
+                    <p class="text-cyber-blue font-bold mb-1">最少冲突策略 (错误)：</p>
+                    <p>• <span class="text-cyber-pink">反例</span>：冲突少的活动可能位置不佳</p>
+                    <p>• <span class="text-cyber-pink">问题</span>：局部最优不等于全局最优</p>
+                    <p>• <span class="text-cyber-yellow">演示</span>：观察此策略的次优解</p>
+                    <p class="text-red-400 mt-2">不保证最优解！</p>
+                `
+            };
+
+            document.getElementById('strategy-explanation').innerHTML = explanations[strategy] || '';
+        }
+
+        // --- 初始化 ---
+        window.onload = function() {
+            tsParticles.load({
+                id: "tsparticles",
+                options: {
+                    background: { color: { value: "transparent" } },
+                    particles: {
+                        color: { value: "#00f3ff" },
+                        links: { color: "#bc13fe", distance: 150, enable: true, opacity: 0.15, width: 1 },
+                        move: { enable: true, speed: 0.5 },
+                        number: { value: window.innerWidth < 768 ? 15 : 30 },
+                        opacity: { value: 0.3 }, size: { value: 2 }
+                    }
+                }
+            });
+
+            // 加载默认示例
+            loadExample1();
+            updateStrategyExplanation('earliest_finish');
+        };
+    </script>
+</body>
+</html>

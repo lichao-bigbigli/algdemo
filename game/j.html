@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>赛博朋克井字棋 - 炸裂版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Courier New', 'Courier', 'monospace', 'system-ui'] },
+                    colors: {
+                        cyber: {
+                            black: '#020205',
+                            dark: '#0a0a12',
+                            blue: '#00f3ff', // X Color
+                            pink: '#ff00ff', // O Color
+                            yellow: '#ffee00', // Draw/Highlight
+                            purple: '#bc13fe',
+                        }
+                    },
+                    boxShadow: {
+                        'neon-blue': '0 0 5px #00f3ff, 0 0 20px #00f3ff',
+                        'neon-pink': '0 0 5px #ff00ff, 0 0 20px #ff00ff',
+                    },
+                    animation: {
+                        'pulse-fast': 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'shake': 'shake 0.4s cubic-bezier(.36,.07,.19,.97) both',
+                    },
+                    keyframes: {
+                        shake: {
+                            '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
+                            '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
+                            '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
+                            '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #020205; color: #e0e0e0;
+            touch-action: manipulation; overscroll-behavior: none; -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            overflow: hidden;
+        }
+        
+        /* Canvas Layers */
+        #bg-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; }
+        #trail-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+        /* FX Canvas 处理 爆炸 和 裂纹 (最上层特效) */
+        #fx-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 60; } 
+        #lightning-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
+
+        /* Board Cell */
+        .cell {
+            background: rgba(10, 10, 20, 0.85);
+            border: 2px solid rgba(0, 243, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            transition: background 0.1s ease, border-color 0.1s ease;
+            position: relative; overflow: hidden;
+            aspect-ratio: 1 / 1;
+        }
+        .cell:hover {
+            background: rgba(0, 243, 255, 0.08);
+            border-color: rgba(0, 243, 255, 0.4);
+            box-shadow: inset 0 0 20px rgba(0, 243, 255, 0.1);
+        }
+        .cell:active {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        /* SVG Stroke Animations */
+        .draw-path {
+            stroke-dasharray: 300; stroke-dashoffset: 300;
+            animation: drawStroke 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+        }
+        @keyframes drawStroke { to { stroke-dashoffset: 0; } }
+
+        /* Button */
+        .btn-cyber {
+            background: rgba(188, 19, 254, 0.1); border: 2px solid #bc13fe; color: #bc13fe;
+            font-family: 'Courier New', monospace; font-weight: bold; letter-spacing: 2px;
+            padding: 15px 20px; text-transform: uppercase; cursor: pointer;
+            transition: all 0.2s; box-shadow: 0 0 5px rgba(188, 19, 254, 0.3);
+            position: relative; overflow: hidden;
+        }
+        .btn-cyber:hover { background: #bc13fe; color: #fff; box-shadow: 0 0 20px #bc13fe; }
+        .btn-cyber:active { transform: scale(0.98); }
+
+        /* Status Bar */
+        .status-bar {
+            border-bottom: 2px solid rgba(255,255,255,0.1);
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(12px);
+            box-shadow: 0 5px 30px rgba(0,0,0,0.5);
+        }
+
+        /* Screen Shake */
+        .shake-screen { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+
+        /* Win Flash */
+        @keyframes flashWin {
+            0%, 100% { opacity: 1; text-shadow: 0 0 20px currentColor; transform: scale(1.05); } 
+            50% { opacity: 0.7; text-shadow: none; transform: scale(1); }
+        }
+        .win-text { animation: flashWin 0.6s infinite; }
+    </style>
+</head>
+<body id="main-body" class="h-screen w-screen flex flex-col items-center justify-center font-mono relative overflow-hidden">
+
+    <!-- Canvas Layers -->
+    <canvas id="bg-canvas"></canvas>
+    <canvas id="trail-canvas"></canvas>
+    <canvas id="fx-canvas"></canvas>
+    <canvas id="lightning-canvas"></canvas>
+
+    <!-- UI Layer (移除 animate-float 以保持静止) -->
+    <div class="z-20 w-full max-w-md px-4 flex flex-col items-center gap-8">
+        
+        <!-- Header -->
+        <div class="status-bar w-full py-6 text-center rounded-xl border border-gray-700/50">
+            <h1 class="text-5xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyber-blue to-cyber-pink mb-2 tracking-widest drop-shadow-[0_0_10px_rgba(0,243,255,0.3)]">
+                TIC-TAC-TOE
+            </h1>
+            <div id="status-text" class="text-xl font-bold text-cyber-blue drop-shadow-[0_0_8px_currentColor] mt-2">
+                PLAYER X TURN
+            </div>
+        </div>
+
+        <!-- Game Board -->
+        <div id="game-board" class="grid grid-cols-3 gap-4 w-full aspect-square bg-cyber-dark/80 p-5 rounded-2xl border border-gray-700/50 shadow-[0_0_60px_rgba(0,0,0,0.9)] backdrop-blur-md relative">
+            <!-- Cells generated by JS -->
+        </div>
+
+        <!-- Controls -->
+        <button onclick="resetGame()" class="btn-cyber w-full rounded-lg text-lg tracking-widest">
+            // SYSTEM REBOOT
+        </button>
+
+    </div>
+
+    <div class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black opacity-80 pointer-events-none z-10"></div>
+
+    <script>
+        // --- Game Logic ---
+        const boardEl = document.getElementById('game-board');
+        const statusEl = document.getElementById('status-text');
+        const lightningCanvas = document.getElementById('lightning-canvas');
+        const fxCanvas = document.getElementById('fx-canvas');
+        const lCtx = lightningCanvas.getContext('2d');
+        const fxCtx = fxCanvas.getContext('2d');
+        const body = document.getElementById('main-body');
+        
+        let currentPlayer = 'X';
+        let gameActive = true;
+        let gameState = ["", "", "", "", "", "", "", "", ""];
+        
+        const winningConditions = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8],
+            [0, 3, 6], [1, 4, 7], [2, 5, 8],
+            [0, 4, 8], [2, 4, 6]
+        ];
+
+        // --- Enhanced SVG Assets (Cooler X & O) ---
+        // X: Double stroke (color glow + white core)
+        const svgX = `
+            <svg viewBox="0 0 100 100" class="w-[70%] h-[70%] overflow-visible drop-shadow-[0_0_10px_#00f3ff]">
+                <defs>
+                    <filter id="glow-x" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+                        <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                </defs>
+                <g filter="url(#glow-x)">
+                    <!-- Outer Glow Stroke -->
+                    <line x1="20" y1="20" x2="80" y2="80" stroke="#00f3ff" stroke-width="14" stroke-linecap="round" class="draw-path" />
+                    <line x1="80" y1="20" x2="20" y2="80" stroke="#00f3ff" stroke-width="14" stroke-linecap="round" class="draw-path" style="animation-delay: 0.1s" />
+                    <!-- Inner White Stroke -->
+                    <line x1="20" y1="20" x2="80" y2="80" stroke="#ffffff" stroke-width="4" stroke-linecap="round" class="draw-path" />
+                    <line x1="80" y1="20" x2="20" y2="80" stroke="#ffffff" stroke-width="4" stroke-linecap="round" class="draw-path" style="animation-delay: 0.1s" />
+                </g>
+            </svg>`;
+            
+        // O: Double stroke (color glow + white core)
+        const svgO = `
+            <svg viewBox="0 0 100 100" class="w-[70%] h-[70%] overflow-visible drop-shadow-[0_0_10px_#ff00ff]">
+                <defs>
+                    <filter id="glow-o" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+                        <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                </defs>
+                <g filter="url(#glow-o)">
+                    <!-- Outer Glow Stroke -->
+                    <circle cx="50" cy="50" r="35" stroke="#ff00ff" stroke-width="14" fill="none" stroke-linecap="round" class="draw-path" />
+                    <!-- Inner White Stroke -->
+                    <circle cx="50" cy="50" r="35" stroke="#ffffff" stroke-width="4" fill="none" stroke-linecap="round" class="draw-path" />
+                </g>
+            </svg>`;
+
+        function createBoard() {
+            boardEl.innerHTML = '';
+            for (let i = 0; i < 9; i++) {
+                const cell = document.createElement('div');
+                cell.classList.add('cell');
+                cell.setAttribute('data-index', i);
+                // Use mousedown for faster reaction than click
+                cell.addEventListener('mousedown', (e) => handleInput(e, i)); 
+                boardEl.appendChild(cell);
+            }
+        }
+
+        function handleInput(e, index) {
+            if (gameState[index] !== "" || !gameActive) return;
+            
+            // Calc click position for effects
+            const rect = e.target.getBoundingClientRect();
+            const x = rect.left + rect.width / 2;
+            const y = rect.top + rect.height / 2;
+            
+            // Effects
+            const color = currentPlayer === 'X' ? '#00f3ff' : '#ff00ff';
+            
+            triggerShake(); // Screen Shake
+            triggerShatter(x, y); // Shatter Effect (Glass cracks)
+            triggerExplosion(x, y, color); // Particle explosion
+            
+            handleCellPlayed(e.target, index);
+            handleResultValidation();
+        }
+
+        function handleCellPlayed(cell, index) {
+            gameState[index] = currentPlayer;
+            cell.innerHTML = currentPlayer === 'X' ? svgX : svgO;
+            playSound('move');
+        }
+
+        function handleResultValidation() {
+            let roundWon = false;
+            let winCondition = null;
+
+            for (let i = 0; i <= 7; i++) {
+                const winConditionIdx = winningConditions[i];
+                let a = gameState[winConditionIdx[0]];
+                let b = gameState[winConditionIdx[1]];
+                let c = gameState[winConditionIdx[2]];
+
+                if (a === '' || b === '' || c === '') continue;
+                if (a === b && b === c) {
+                    roundWon = true;
+                    winCondition = winConditionIdx;
+                    break;
+                }
+            }
+
+            if (roundWon) {
+                endGame(true, winCondition);
+                return;
+            }
+
+            let roundDraw = !gameState.includes("");
+            if (roundDraw) {
+                endGame(false);
+                return;
+            }
+
+            currentPlayer = currentPlayer === "X" ? "O" : "X";
+            updateStatus();
+        }
+
+        function updateStatus() {
+            statusEl.textContent = `PLAYER ${currentPlayer} TURN`;
+            statusEl.className = `text-xl font-bold drop-shadow-[0_0_5px_currentColor] ${currentPlayer === 'X' ? 'text-cyber-blue' : 'text-cyber-pink'}`;
+        }
+
+        function endGame(isWin, winCondition) {
+            gameActive = false;
+            if (isWin) {
+                statusEl.innerHTML = `<span class="win-text">WARNING: PLAYER ${currentPlayer} WINS!</span>`;
+                statusEl.className = `text-2xl font-black ${currentPlayer === 'X' ? 'text-cyber-blue' : 'text-cyber-pink'} drop-shadow-[0_0_10px_currentColor]`;
+                playSound('win');
+                triggerLightning(winCondition);
+            } else {
+                statusEl.innerHTML = `<span class="text-cyber-yellow">SYSTEM ALERT: DRAW GAME</span>`;
+                playSound('draw');
+            }
+        }
+
+        function resetGame() {
+            gameActive = true;
+            currentPlayer = "X";
+            gameState = ["", "", "", "", "", "", "", "", ""];
+            updateStatus();
+            createBoard();
+            lCtx.clearRect(0, 0, lightningCanvas.width, lightningCanvas.height);
+            playSound('reset');
+        }
+
+        // --- Visual Effects ---
+
+        function triggerShake() {
+            body.classList.remove('shake-screen');
+            void body.offsetWidth; 
+            body.classList.add('shake-screen');
+        }
+
+        let particles = [];
+        let cracks = [];
+
+        // Shatter Effect: Semi-transparent glass cracks
+        function triggerShatter(x, y) {
+            const numCracks = 8;
+            const lines = [];
+            
+            for(let i=0; i<numCracks; i++) {
+                const angle = (Math.PI * 2 * i) / numCracks;
+                const length = 60 + Math.random() * 80;
+                
+                // Create jagged path for each crack
+                let currentX = x;
+                let currentY = y;
+                let segments = [{x: currentX, y: currentY}];
+                
+                const segCount = 3;
+                for(let j=0; j<segCount; j++) {
+                    const rAngle = angle + (Math.random() - 0.5) * 0.5;
+                    const rLen = length / segCount;
+                    currentX += Math.cos(rAngle) * rLen;
+                    currentY += Math.sin(rAngle) * rLen;
+                    segments.push({x: currentX, y: currentY});
+                }
+                
+                // Add random cross branches
+                if (Math.random() > 0.5) {
+                    const branchStart = segments[1];
+                    const bAngle = angle + (Math.random() > 0.5 ? 0.5 : -0.5);
+                    const bLen = 20;
+                    segments.push({
+                        branch: true,
+                        x1: branchStart.x, y1: branchStart.y,
+                        x2: branchStart.x + Math.cos(bAngle)*bLen, 
+                        y2: branchStart.y + Math.sin(bAngle)*bLen
+                    });
+                }
+                
+                lines.push(segments);
+            }
+
+            cracks.push({
+                x: x, y: y,
+                lines: lines,
+                life: 0.5, // Total duration 0.5s
+                maxLife: 0.5
+            });
+        }
+
+        function triggerExplosion(x, y, color) {
+            for (let i = 0; i < 20; i++) {
+                particles.push({
+                    x: x, y: y,
+                    vx: (Math.random() - 0.5) * 20,
+                    vy: (Math.random() - 0.5) * 20,
+                    life: 1.0,
+                    color: color,
+                    size: Math.random() * 4 + 2,
+                    type: 'particle'
+                });
+            }
+        }
+
+        function updateFX() {
+            fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
+            const dt = 0.016; 
+
+            // 1. Draw Shatter Cracks (Glass Effect)
+            for (let i = cracks.length - 1; i >= 0; i--) {
+                let c = cracks[i];
+                c.life -= dt;
+                
+                if (c.life <= 0) {
+                    cracks.splice(i, 1);
+                    continue;
+                }
+
+                // Opacity logic: Stay visible then fade out at end
+                const opacity = c.life / c.maxLife; 
+                
+                fxCtx.save();
+                fxCtx.strokeStyle = `rgba(200, 255, 255, ${opacity * 0.6})`; // Semi-transparent white/cyan
+                fxCtx.lineWidth = 2;
+                fxCtx.lineCap = 'round';
+                fxCtx.lineJoin = 'round';
+                fxCtx.shadowColor = 'rgba(255,255,255,0.5)';
+                fxCtx.shadowBlur = 10;
+
+                c.lines.forEach(segments => {
+                    fxCtx.beginPath();
+                    let start = segments[0];
+                    fxCtx.moveTo(start.x, start.y);
+                    
+                    for(let k=1; k<segments.length; k++) {
+                        let pt = segments[k];
+                        if (pt.branch) {
+                            fxCtx.moveTo(pt.x1, pt.y1);
+                            fxCtx.lineTo(pt.x2, pt.y2);
+                            fxCtx.moveTo(start.x, start.y); // Reset pen to avoid connection lines
+                        } else {
+                            fxCtx.lineTo(pt.x, pt.y);
+                        }
+                    }
+                    fxCtx.stroke();
+                });
+                
+                fxCtx.restore();
+            }
+
+            // 2. Draw Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vx *= 0.9;
+                p.vy *= 0.9;
+                p.life -= 0.03;
+                
+                if (p.life <= 0) { particles.splice(i, 1); continue; }
+
+                fxCtx.save();
+                fxCtx.fillStyle = p.color;
+                fxCtx.globalAlpha = p.life;
+                fxCtx.beginPath();
+                fxCtx.rect(p.x, p.y, p.size, p.size);
+                fxCtx.fill();
+                fxCtx.restore();
+            }
+            requestAnimationFrame(updateFX);
+        }
+        updateFX();
+
+        // --- Lightning Effect ---
+        function triggerLightning(indices) {
+            const cells = document.querySelectorAll('.cell');
+            const startCell = cells[indices[0]].getBoundingClientRect();
+            const endCell = cells[indices[2]].getBoundingClientRect();
+
+            const x1 = startCell.left + startCell.width / 2;
+            const y1 = startCell.top + startCell.height / 2;
+            const x2 = endCell.left + endCell.width / 2;
+            const y2 = endCell.top + endCell.height / 2;
+
+            let opacity = 1;
+            const color = currentPlayer === 'X' ? '#00f3ff' : '#ff00ff';
+
+            function animate() {
+                if (opacity <= 0) return;
+                
+                lCtx.clearRect(0, 0, lightningCanvas.width, lightningCanvas.height);
+                lCtx.save();
+                lCtx.globalAlpha = opacity;
+                lCtx.shadowBlur = 25;
+                lCtx.shadowColor = color;
+                lCtx.strokeStyle = '#fff';
+                lCtx.lineWidth = 5;
+                lCtx.lineCap = 'round';
+                lCtx.lineJoin = 'round';
+
+                drawBolt(x1, y1, x2, y2, 20);
+                lCtx.lineWidth = 2;
+                lCtx.strokeStyle = color;
+                drawBolt(x1, y1, x2, y2, 35);
+
+                lCtx.restore();
+                opacity -= 0.04; 
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        function drawBolt(x1, y1, x2, y2, displacement) {
+            if (displacement < 2) {
+                lCtx.beginPath(); lCtx.moveTo(x1, y1); lCtx.lineTo(x2, y2); lCtx.stroke();
+                return;
+            }
+            const midX = (x1 + x2) / 2;
+            const midY = (y1 + y2) / 2;
+            const normalX = -(y2 - y1);
+            const normalY = x2 - x1;
+            const len = Math.sqrt(normalX*normalX + normalY*normalY);
+            const offset = (Math.random() - 0.5) * displacement * 2;
+            const offsetX = (normalX / len) * offset;
+            const offsetY = (normalY / len) * offset;
+            drawBolt(x1, y1, midX + offsetX, midY + offsetY, displacement / 2);
+            drawBolt(midX + offsetX, midY + offsetY, x2, y2, displacement / 2);
+        }
+
+        // --- Mouse Trail ---
+        function initMouseTrail() {
+            const canvas = document.getElementById('trail-canvas');
+            const ctx = canvas.getContext('2d');
+            let w, h, particles = [];
+            
+            const resize = () => {
+                w = window.innerWidth; h = window.innerHeight;
+                canvas.width = w; canvas.height = h;
+                fxCanvas.width = w; fxCanvas.height = h;
+                lightningCanvas.width = w; lightningCanvas.height = h;
+            };
+            window.addEventListener('resize', resize);
+            resize();
+
+            const addParticle = (x, y) => {
+                for(let i=0; i<1; i++) {
+                    particles.push({
+                        x: x, y: y,
+                        vx: (Math.random() - 0.5) * 2,
+                        vy: (Math.random() - 0.5) * 2,
+                        life: 1,
+                        color: Math.random() > 0.5 ? '#00f3ff' : '#bc13fe',
+                        size: Math.random() * 5 + 2,
+                        rotation: Math.random() * Math.PI
+                    });
+                }
+            };
+
+            window.addEventListener('mousemove', e => addParticle(e.clientX, e.clientY));
+            window.addEventListener('touchmove', e => addParticle(e.touches[0].clientX, e.touches[0].clientY));
+
+            function loop() {
+                ctx.clearRect(0, 0, w, h);
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    let p = particles[i];
+                    p.x += p.vx; p.y += p.vy;
+                    p.life -= 0.03; p.rotation += 0.1;
+                    if (p.life <= 0) { particles.splice(i, 1); continue; }
+                    
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(p.rotation);
+                    ctx.strokeStyle = p.color;
+                    ctx.lineWidth = 2;
+                    ctx.globalAlpha = p.life * 0.8;
+                    ctx.strokeRect(-p.size/2, -p.size/2, p.size, p.size);
+                    ctx.restore();
+                }
+                requestAnimationFrame(loop);
+            }
+            loop();
+        }
+
+        // --- Background Animation ---
+        function initBackground() {
+            const canvas = document.getElementById('bg-canvas');
+            const ctx = canvas.getContext('2d');
+            let w, h, elements = [];
+            const resize = () => { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; };
+            window.addEventListener('resize', resize);
+            resize();
+
+            for(let i=0; i<15; i++) {
+                elements.push({
+                    x: Math.random() * w, y: Math.random() * h,
+                    size: Math.random() * 100 + 20,
+                    speed: Math.random() * 0.5 + 0.1,
+                    opacity: 0,
+                    maxOpacity: Math.random() * 0.1 + 0.02,
+                    fadeIn: true,
+                    type: Math.random() > 0.5 ? 'rect' : 'cross'
+                });
+            }
+
+            function draw() {
+                ctx.clearRect(0, 0, w, h);
+                ctx.fillStyle = 'rgba(0, 243, 255, 0.02)';
+                const scanY = (Date.now() / 15) % h;
+                ctx.fillRect(0, scanY, w, 4);
+
+                elements.forEach(el => {
+                    if (el.fadeIn) { el.opacity += 0.002; if (el.opacity >= el.maxOpacity) el.fadeIn = false; }
+                    else { el.opacity -= 0.002; if (el.opacity <= 0) { el.fadeIn = true; el.x = Math.random() * w; el.y = Math.random() * h; } }
+                    el.y -= el.speed; if (el.y < -50) el.y = h + 50;
+
+                    ctx.save();
+                    ctx.strokeStyle = '#00f3ff'; ctx.lineWidth = 1; ctx.globalAlpha = el.opacity;
+                    
+                    if (el.type === 'rect') {
+                        ctx.strokeRect(el.x, el.y, el.size, el.size);
+                        ctx.fillRect(el.x-2, el.y-2, 4, 4); ctx.fillRect(el.x+el.size-2, el.y+el.size-2, 4, 4);
+                    } else {
+                        const s = el.size / 2;
+                        ctx.beginPath(); ctx.moveTo(el.x-s, el.y); ctx.lineTo(el.x+s, el.y); ctx.moveTo(el.x, el.y-s); ctx.lineTo(el.x, el.y+s); ctx.stroke();
+                    }
+                    ctx.restore();
+                });
+                requestAnimationFrame(draw);
+            }
+            draw();
+        }
+
+        // --- Audio System ---
+        let audioCtx = null;
+        function playSound(type) {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+
+            if (type === 'move') {
+                // Impact sound
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(100, now);
+                osc.frequency.exponentialRampToValueAtTime(40, now + 0.1);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now); osc.stop(now + 0.15);
+            } else if (type === 'win') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(200, now);
+                osc.frequency.linearRampToValueAtTime(800, now + 0.1);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 0.5);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                osc.start(now); osc.stop(now + 0.5);
+            } else if (type === 'draw') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(100, now);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now); osc.stop(now + 0.3);
+            } else if (type === 'reset') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(800, now);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now); osc.stop(now + 0.2);
+            }
+        }
+
+        window.onload = () => {
+            createBoard();
+            initMouseTrail();
+            initBackground();
+        };
+    </script>
+</body>
+</html>

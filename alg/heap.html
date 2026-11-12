@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
+    <title>赛博朋克堆演示</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/tailwindcss/3.4.1/tailwind.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tsparticles/engine@2/tsparticles.engine.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/tsparticles-engine/2.12.0/tsparticles.engine.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tsparticles/preset-links@2/tsparticles.preset.links.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/tsparticles-preset-links/2.12.0/tsparticles.preset.links.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Courier New', 'Courier', 'monospace', 'system-ui'] },
+                    colors: {
+                        cyber: {
+                            black: '#020205', dark: '#0a0a12', blue: '#00f3ff', pink: '#ff00ff',
+                            purple: '#bc13fe', yellow: '#ffee00', green: '#00ff9f',
+                        }
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #020205; color: #e0e0e0; touch-action: manipulation; overscroll-behavior: none; }
+        #tsparticles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+
+        .sidebar-cyber { background: rgba(10, 10, 18, 0.92); backdrop-filter: blur(16px); border-top: 1px solid rgba(0, 243, 255, 0.3); box-shadow: 0 -5px 20px rgba(0, 243, 255, 0.1); }
+        @media (min-width: 768px) { .sidebar-cyber { border-top: none; border-right: 2px solid #00f3ff; } }
+
+        .btn-cyber { position: relative; background: transparent; border: 2px solid; transition: all 0.2s; font-family: 'Courier New', monospace; user-select: none; }
+        .btn-cyber-blue { border-color: #00f3ff; color: #00f3ff; text-shadow: 0 0 5px #00f3ff; }
+        .btn-cyber-blue:active { background: #00f3ff; color: #000; box-shadow: 0 0 20px #00f3ff; transform: scale(0.96); }
+        @media(hover: hover) { .btn-cyber-blue:hover { background: #00f3ff; color: #000; box-shadow: 0 0 20px #00f3ff; } }
+
+        .btn-cyber-pink { border-color: #ff00ff; color: #ff00ff; text-shadow: 0 0 5px #ff00ff; }
+        .btn-cyber-pink:active { background: #ff00ff; color: #000; box-shadow: 0 0 20px #ff00ff; transform: scale(0.96); }
+        @media(hover: hover) { .btn-cyber-pink:hover { background: #ff00ff; color: #000; box-shadow: 0 0 20px #ff00ff; } }
+
+        .btn-cyber-green { border-color: #00ff9f; color: #00ff9f; text-shadow: 0 0 5px #00ff9f; }
+        .btn-cyber-green:active { background: #00ff9f; color: #000; box-shadow: 0 0 20px #00ff9f; transform: scale(0.96); }
+        @media(hover: hover) { .btn-cyber-green:hover { background: #00ff9f; color: #000; box-shadow: 0 0 20px #00ff9f; } }
+
+        .btn-cyber-purple { border-color: #bc13fe; color: #bc13fe; text-shadow: 0 0 5px #bc13fe; }
+        .btn-cyber-purple:active { background: #bc13fe; color: #000; box-shadow: 0 0 20px #bc13fe; transform: scale(0.96); }
+        @media(hover: hover) { .btn-cyber-purple:hover { background: #bc13fe; color: #000; box-shadow: 0 0 20px #bc13fe; } }
+
+        canvas#heapCanvas { background: radial-gradient(circle at center, rgba(0,243,255,0.05) 0%, transparent 70%); cursor: default; }
+
+        ::-webkit-scrollbar { width: 4px; height: 4px;}
+        ::-webkit-scrollbar-track { background: #0a0a12; }
+        ::-webkit-scrollbar-thumb { background: #00f3ff; border-radius: 2px; }
+    </style>
+</head>
+<body class="overflow-hidden flex flex-col-reverse md:flex-row h-screen w-screen font-mono">
+
+    <div id="tsparticles"></div>
+
+    <!-- 左侧控制面板 -->
+    <aside class="w-full md:w-[380px] sidebar-cyber flex flex-col z-20 flex-shrink-0 h-[45%] md:h-full">
+        <div class="hidden md:block p-5 border-b border-cyber-blue/30 relative overflow-hidden">
+            <h1 class="text-3xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyber-blue to-cyber-purple drop-shadow-[0_0_10px_rgba(0,243,255,0.5)]">HEAP_OS</h1>
+            <p class="text-[10px] text-cyber-blue/70 mt-1 tracking-[0.2em]">PRIORITY QUEUE</p>
+        </div>
+        <div class="md:hidden w-full pt-2 pb-1 flex justify-center"><div class="w-12 h-1 bg-cyber-blue/30 rounded-full"></div></div>
+
+        <div class="flex-1 overflow-y-auto p-4 space-y-4">
+
+            <!-- 堆类型选择 -->
+            <div class="border border-cyber-blue/30 p-3 bg-black/40">
+                <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-2 block">>> 堆类型</label>
+                <div class="flex gap-2">
+                    <label class="flex-1 cursor-pointer">
+                        <input type="radio" name="heap-type" value="max" checked onchange="changeHeapType()" class="sr-only peer">
+                        <div class="border-2 border-cyber-blue text-cyber-blue text-center py-2 text-sm font-bold peer-checked:bg-cyber-blue peer-checked:text-black transition-all">
+                            大根堆 (Max)
+                        </div>
+                    </label>
+                    <label class="flex-1 cursor-pointer">
+                        <input type="radio" name="heap-type" value="min" onchange="changeHeapType()" class="sr-only peer">
+                        <div class="border-2 border-cyber-pink text-cyber-pink text-center py-2 text-sm font-bold peer-checked:bg-cyber-pink peer-checked:text-black transition-all">
+                            小根堆 (Min)
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 堆操作 -->
+            <div class="space-y-2">
+                <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">>> 堆操作</label>
+                <div class="flex gap-2">
+                    <input type="number" id="value-input" placeholder="输入值" class="flex-1 bg-cyber-black/50 border border-gray-600 text-white text-center py-2 text-sm outline-none focus:border-cyber-blue">
+                    <button onclick="insertValue()" class="btn-cyber btn-cyber-green px-4 py-2 text-sm font-bold">
+                        插入
+                    </button>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="extractTop()" class="btn-cyber btn-cyber-pink py-2 text-sm font-bold">
+                        弹出堆顶
+                    </button>
+                    <button onclick="peekTop()" class="btn-cyber btn-cyber-blue py-2 text-sm font-bold">
+                        查看堆顶
+                    </button>
+                </div>
+                <button onclick="clearHeap()" class="btn-cyber border-gray-400 text-gray-300 w-full py-2 text-sm font-bold hover:border-white hover:text-white">
+                    清空堆
+                </button>
+            </div>
+
+            <!-- 批量操作 -->
+            <div class="space-y-2 pt-2 border-t border-gray-800">
+                <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">>> 批量构建</label>
+                <div class="flex gap-2">
+                    <input type="text" id="array-input" placeholder="用逗号分隔，如: 5,3,8,1,9" class="flex-1 bg-cyber-black/50 border border-cyber-purple text-cyber-purple text-center py-2 text-xs outline-none">
+                </div>
+                <button onclick="buildHeap()" class="btn-cyber btn-cyber-purple w-full py-2 text-sm font-bold">
+                    构建堆 (Heapify)
+                </button>
+            </div>
+
+            <!-- 示例数据 -->
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="loadExample1()" class="btn-cyber btn-cyber-purple py-2 text-xs font-bold">
+                    示例1: 顺序
+                </button>
+                <button onclick="loadExample2()" class="btn-cyber btn-cyber-purple py-2 text-xs font-bold">
+                    示例2: 随机
+                </button>
+            </div>
+
+            <!-- 堆排序 -->
+            <div class="space-y-2 pt-2 border-t border-gray-800">
+                <label class="text-[10px] text-cyber-green font-bold uppercase tracking-widest">>> 堆排序</label>
+                <button onclick="heapSort()" class="btn-cyber btn-cyber-green w-full py-2 text-sm font-bold">
+                    执行堆排序
+                </button>
+                <div id="sort-result" class="bg-black/60 border border-cyber-green/30 p-2 text-xs text-cyber-green min-h-[40px] overflow-auto">
+                    排序结果将显示在这里
+                </div>
+            </div>
+
+            <!-- 数组表示 -->
+            <div class="space-y-2 pt-2 border-t border-gray-800">
+                <label class="text-[10px] text-cyber-yellow font-bold uppercase tracking-widest">>> 数组表示</label>
+                <div id="array-display" class="bg-black/60 border border-cyber-yellow/30 p-2 text-xs text-gray-300 overflow-auto">
+                    []
+                </div>
+                <div class="text-[9px] text-gray-500 leading-tight">
+                    父节点: i, 左子: 2i+1, 右子: 2i+2
+                </div>
+            </div>
+
+            <!-- 算法说明 -->
+            <div class="space-y-2 pt-2 border-t border-gray-800">
+                <label class="text-[10px] text-cyber-pink font-bold uppercase tracking-widest">>> 堆性质</label>
+                <div id="algo-explanation" class="text-[10px] text-gray-300 bg-black/60 border border-cyber-pink/30 p-3 leading-relaxed">
+                    <p class="text-cyber-blue font-bold mb-1">堆 (Heap)：</p>
+                    <p>• <span class="text-cyber-green">完全二叉树</span>：每层从左到右填满</p>
+                    <p>• <span class="text-cyber-yellow">堆性质</span>：大根堆父≥子，小根堆父≤子</p>
+                    <p>• <span class="text-cyber-pink">插入</span>：O(log n) 上浮操作</p>
+                    <p>• <span class="text-cyber-purple">删除</span>：O(log n) 下沉操作</p>
+                    <p>• <span class="text-cyber-blue">建堆</span>：O(n) 自底向上堆化</p>
+                </div>
+            </div>
+
+            <!-- 日志 -->
+            <div class="hidden md:block flex-1 min-h-[100px] bg-black/80 border border-gray-700 p-2 text-[10px] overflow-y-auto font-mono relative">
+                <div class="absolute top-0 right-0 px-1 bg-cyber-blue text-black font-bold">LOG</div>
+                <div id="log-box" class="space-y-1 mt-4 text-gray-400">
+                    <div class="text-cyber-green">> Heap System Initialized.</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 右侧可视化区域 -->
+    <main class="flex-1 relative flex flex-col items-center overflow-hidden z-10 h-[55%] md:h-full">
+        <div class="w-full h-full relative">
+            <canvas id="heapCanvas" class="w-full h-full"></canvas>
+
+            <div class="absolute top-4 left-4 pointer-events-none">
+                <h2 class="text-2xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-500 opacity-50">HEAP TREE</h2>
+                <p id="heap-status" class="text-[10px] text-cyber-blue font-bold tracking-widest mt-1">SIZE: 0</p>
+            </div>
+
+            <!-- 图例 -->
+            <div class="absolute top-4 right-4 bg-black/80 border border-cyber-blue/30 p-2 text-[10px] space-y-1">
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 border-2 border-cyber-blue rounded-full"></div>
+                    <span class="text-gray-400">普通节点</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 bg-cyber-pink border-2 border-cyber-pink rounded-full"></div>
+                    <span class="text-cyber-pink">堆顶</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 bg-cyber-yellow border-2 border-cyber-yellow rounded-full"></div>
+                    <span class="text-cyber-yellow">当前操作</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // --- 核心数据结构 ---
+        let heap = [];
+        let isMaxHeap = true;
+        let isAnimating = false;
+
+        // --- 画布配置 ---
+        const canvas = document.getElementById('heapCanvas');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+
+        function resize() {
+            width = canvas.offsetWidth;
+            height = canvas.offsetHeight;
+            canvas.width = width * window.devicePixelRatio;
+            canvas.height = height * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+            drawHeap();
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // 声音系统
+        let audioCtx = null;
+        function playSound(type) {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+
+            if (type === 'insert') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(800, now); osc.frequency.exponentialRampToValueAtTime(1200, now + 0.1);
+                gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now); osc.stop(now + 0.1);
+            } else if (type === 'swap') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(600, now);
+                gain.gain.setValueAtTime(0.05, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now); osc.stop(now + 0.15);
+            } else if (type === 'pop') {
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(1000, now); osc.frequency.linearRampToValueAtTime(500, now + 0.15);
+                gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now); osc.stop(now + 0.15);
+            } else if (type === 'error') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, now); osc.frequency.linearRampToValueAtTime(100, now + 0.2);
+                gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.2);
+                osc.start(now); osc.stop(now + 0.2);
+            }
+        }
+
+        // 日志系统
+        function log(msg, type = 'normal') {
+            const logBox = document.getElementById('log-box');
+            if(!logBox) return;
+            const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+            let color = 'text-gray-400';
+            if (type === 'success') color = 'text-cyber-green';
+            if (type === 'error') color = 'text-cyber-pink';
+            if (type === 'warn') color = 'text-cyber-yellow';
+            if (type === 'info') color = 'text-cyber-blue';
+            const div = document.createElement('div');
+            div.innerHTML = `<span class="opacity-50">[${time}]</span> <span class="${color}">${msg}</span>`;
+            logBox.prepend(div);
+        }
+
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+        // --- 堆操作辅助函数 ---
+        function parent(i) { return Math.floor((i - 1) / 2); }
+        function leftChild(i) { return 2 * i + 1; }
+        function rightChild(i) { return 2 * i + 2; }
+
+        function compare(a, b) {
+            return isMaxHeap ? a > b : a < b;
+        }
+
+        // --- 上浮操作 ---
+        async function heapifyUp(index) {
+            while (index > 0) {
+                const p = parent(index);
+                if (compare(heap[index], heap[p])) {
+                    log(`上浮: 交换 ${heap[index]} 和 ${heap[p]}`, 'info');
+                    [heap[index], heap[p]] = [heap[p], heap[index]];
+                    playSound('swap');
+                    drawHeap([index, p]);
+                    await sleep(600);
+                    index = p;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        // --- 下沉操作 ---
+        async function heapifyDown(index) {
+            const n = heap.length;
+            while (true) {
+                let target = index;
+                const left = leftChild(index);
+                const right = rightChild(index);
+
+                if (left < n && compare(heap[left], heap[target])) {
+                    target = left;
+                }
+                if (right < n && compare(heap[right], heap[target])) {
+                    target = right;
+                }
+
+                if (target !== index) {
+                    log(`下沉: 交换 ${heap[index]} 和 ${heap[target]}`, 'info');
+                    [heap[index], heap[target]] = [heap[target], heap[index]];
+                    playSound('swap');
+                    drawHeap([index, target]);
+                    await sleep(600);
+                    index = target;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        // --- 插入操作 ---
+        async function insertValue() {
+            if (isAnimating) return;
+
+            const value = parseInt(document.getElementById('value-input').value);
+            if (isNaN(value)) {
+                log('Error: 请输入有效数字', 'error');
+                playSound('error');
+                return;
+            }
+
+            isAnimating = true;
+            heap.push(value);
+            log(`插入 ${value} 到堆末尾`, 'success');
+            playSound('insert');
+            updateDisplay();
+            drawHeap([heap.length - 1]);
+            await sleep(500);
+
+            await heapifyUp(heap.length - 1);
+            log(`插入完成，堆性质已恢复`, 'success');
+
+            document.getElementById('value-input').value = '';
+            updateDisplay();
+            drawHeap();
+            isAnimating = false;
+        }
+
+        // --- 弹出堆顶 ---
+        async function extractTop() {
+            if (isAnimating) return;
+            if (heap.length === 0) {
+                log('Error: 堆为空', 'error');
+                playSound('error');
+                return;
+            }
+
+            isAnimating = true;
+            const top = heap[0];
+            log(`弹出堆顶: ${top}`, 'warn');
+
+            if (heap.length === 1) {
+                heap.pop();
+            } else {
+                heap[0] = heap.pop();
+                log(`将末尾元素 ${heap[0]} 移到堆顶`, 'info');
+                playSound('pop');
+                updateDisplay();
+                drawHeap([0]);
+                await sleep(600);
+
+                await heapifyDown(0);
+            }
+
+            log(`弹出完成，返回值: ${top}`, 'success');
+            updateDisplay();
+            drawHeap();
+            isAnimating = false;
+        }
+
+        // --- 查看堆顶 ---
+        function peekTop() {
+            if (heap.length === 0) {
+                log('Error: 堆为空', 'error');
+                playSound('error');
+                return;
+            }
+            log(`堆顶元素: ${heap[0]}`, 'info');
+            playSound('insert');
+            drawHeap([0]);
+            setTimeout(() => drawHeap(), 800);
+        }
+
+        // --- 清空堆 ---
+        function clearHeap() {
+            heap = [];
+            log('堆已清空', 'warn');
+            updateDisplay();
+            drawHeap();
+        }
+
+        // --- 改变堆类型 ---
+        function changeHeapType() {
+            const selected = document.querySelector('input[name="heap-type"]:checked').value;
+            isMaxHeap = (selected === 'max');
+            log(`切换为 ${isMaxHeap ? '大根堆' : '小根堆'}`, 'warn');
+
+            if (heap.length > 0) {
+                log('重新构建堆...', 'info');
+                buildHeapFromArray(heap);
+            }
+        }
+
+        // --- 构建堆 ---
+        async function buildHeap() {
+            if (isAnimating) return;
+
+            const input = document.getElementById('array-input').value.trim();
+            if (!input) {
+                log('Error: 请输入数组', 'error');
+                playSound('error');
+                return;
+            }
+
+            const arr = input.split(',').map(x => parseInt(x.trim())).filter(x => !isNaN(x));
+            if (arr.length === 0) {
+                log('Error: 无有效数字', 'error');
+                playSound('error');
+                return;
+            }
+
+            await buildHeapFromArray(arr);
+            document.getElementById('array-input').value = '';
+        }
+
+        async function buildHeapFromArray(arr) {
+            isAnimating = true;
+            heap = [...arr];
+            log(`开始构建堆，输入: [${arr.join(', ')}]`, 'info');
+            updateDisplay();
+            drawHeap();
+            await sleep(500);
+
+            // 自底向上堆化
+            const n = heap.length;
+            for (let i = Math.floor(n / 2) - 1; i >= 0; i--) {
+                log(`堆化节点 index=${i}, value=${heap[i]}`, 'info');
+                await heapifyDown(i);
+            }
+
+            log('堆构建完成！', 'success');
+            updateDisplay();
+            drawHeap();
+            isAnimating = false;
+        }
+
+        // --- 堆排序 ---
+        async function heapSort() {
+            if (isAnimating) return;
+            if (heap.length === 0) {
+                log('Error: 堆为空', 'error');
+                playSound('error');
+                return;
+            }
+
+            isAnimating = true;
+            const original = [...heap];
+            log(`开始堆排序，输入: [${original.join(', ')}]`, 'info');
+
+            const result = [];
+            while (heap.length > 0) {
+                const top = heap[0];
+                result.push(top);
+
+                if (heap.length === 1) {
+                    heap.pop();
+                } else {
+                    heap[0] = heap.pop();
+                    updateDisplay();
+                    drawHeap([0]);
+                    await sleep(400);
+                    await heapifyDown(0);
+                }
+                updateDisplay();
+                drawHeap();
+                await sleep(300);
+            }
+
+            // 恢复原数组
+            heap = [...original];
+
+            const sortedStr = isMaxHeap ? result.join(' → ') : result.reverse().join(' → ');
+            document.getElementById('sort-result').innerHTML = `
+                <div class="text-cyber-green font-bold mb-1">排序结果 (${isMaxHeap ? '降序' : '升序'}):</div>
+                <div class="text-cyber-yellow">[${isMaxHeap ? result.join(', ') : result.reverse().join(', ')}]</div>
+            `;
+
+            log(`堆排序完成！`, 'success');
+            updateDisplay();
+            drawHeap();
+            isAnimating = false;
+        }
+
+        // --- 示例数据 ---
+        function loadExample1() {
+            document.getElementById('array-input').value = '1,2,3,4,5,6,7,8,9';
+            buildHeap();
+            log('加载顺序数组示例', 'info');
+        }
+
+        function loadExample2() {
+            const arr = Array.from({length: 10}, () => Math.floor(Math.random() * 100));
+            document.getElementById('array-input').value = arr.join(',');
+            buildHeap();
+            log('加载随机数组示例', 'info');
+        }
+
+        // --- 更新显示 ---
+        function updateDisplay() {
+            document.getElementById('heap-status').innerText = `SIZE: ${heap.length}`;
+            document.getElementById('array-display').innerText = heap.length > 0 ? `[${heap.join(', ')}]` : '[]';
+        }
+
+        // --- 绘制堆树 ---
+        function drawHeap(highlightIndices = []) {
+            ctx.clearRect(0, 0, width, height);
+
+            if (heap.length === 0) {
+                ctx.fillStyle = '#555';
+                ctx.font = '14px Courier New';
+                ctx.textAlign = 'center';
+                ctx.fillText('堆为空，请插入元素', width / 2, height / 2);
+                return;
+            }
+
+            const levels = Math.ceil(Math.log2(heap.length + 1));
+            const nodeRadius = 22;
+            const levelHeight = Math.min(80, (height - 100) / levels);
+
+            // 递归绘制节点
+            function drawNode(index, x, y, offsetX) {
+                if (index >= heap.length) return;
+
+                const value = heap[index];
+                const left = leftChild(index);
+                const right = rightChild(index);
+
+                // 绘制边
+                if (left < heap.length) {
+                    const childX = x - offsetX;
+                    const childY = y + levelHeight;
+                    ctx.strokeStyle = '#bc13fe';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(x, y + nodeRadius);
+                    ctx.lineTo(childX, childY - nodeRadius);
+                    ctx.stroke();
+                    drawNode(left, childX, childY, offsetX / 2);
+                }
+
+                if (right < heap.length) {
+                    const childX = x + offsetX;
+                    const childY = y + levelHeight;
+                    ctx.strokeStyle = '#bc13fe';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(x, y + nodeRadius);
+                    ctx.lineTo(childX, childY - nodeRadius);
+                    ctx.stroke();
+                    drawNode(right, childX, childY, offsetX / 2);
+                }
+
+                // 绘制节点
+                let fillColor, strokeColor, shadowBlur;
+
+                if (index === 0) {
+                    // 堆顶
+                    fillColor = '#ff00ff';
+                    strokeColor = '#ff00ff';
+                    shadowBlur = 15;
+                } else if (highlightIndices.includes(index)) {
+                    // 高亮节点
+                    fillColor = '#ffee00';
+                    strokeColor = '#ffee00';
+                    shadowBlur = 20;
+                } else {
+                    // 普通节点
+                    fillColor = 'rgba(10, 10, 18, 0.9)';
+                    strokeColor = '#00f3ff';
+                    shadowBlur = 5;
+                }
+
+                ctx.shadowBlur = shadowBlur;
+                ctx.shadowColor = strokeColor;
+                ctx.fillStyle = fillColor;
+                ctx.strokeStyle = strokeColor;
+                ctx.lineWidth = 2;
+
+                ctx.beginPath();
+                ctx.arc(x, y, nodeRadius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+
+                // 绘制值
+                ctx.fillStyle = index === 0 || highlightIndices.includes(index) ? '#000' : '#fff';
+                ctx.font = 'bold 14px Courier New';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(value, x, y);
+            }
+
+            const startX = width / 2;
+            const startY = 80;
+            const startOffset = Math.min(width / 4, 150);
+
+            drawNode(0, startX, startY, startOffset);
+        }
+
+        // --- 初始化 ---
+        window.onload = function() {
+            tsParticles.load({
+                id: "tsparticles",
+                options: {
+                    background: { color: { value: "transparent" } },
+                    particles: {
+                        color: { value: "#00f3ff" },
+                        links: { color: "#bc13fe", distance: 150, enable: true, opacity: 0.15, width: 1 },
+                        move: { enable: true, speed: 0.5 },
+                        number: { value: window.innerWidth < 768 ? 15 : 30 },
+                        opacity: { value: 0.3 }, size: { value: 2 }
+                    }
+                }
+            });
+
+            updateDisplay();
+            drawHeap();
+        };
+    </script>
+</body>
+</html>

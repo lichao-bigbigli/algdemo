@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>赛博朋克二分查找演示</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tsparticles@2.12.0/tsparticles.bundle.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Courier New', 'Courier', 'monospace', 'system-ui'] },
+                    colors: {
+                        cyber: {
+                            black: '#020205', dark: '#0a0a12', blue: '#00f3ff', pink: '#ff00ff',
+                            purple: '#bc13fe', yellow: '#ffee00', green: '#00ff9f',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #020205; color: #e0e0e0; touch-action: manipulation; overscroll-behavior: none; }
+        #tsparticles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+        
+        .sidebar-cyber { background: rgba(10, 10, 18, 0.92); backdrop-filter: blur(16px); border-top: 1px solid rgba(0, 243, 255, 0.3); }
+        @media (min-width: 768px) { .sidebar-cyber { border-top: none; border-right: 2px solid #00f3ff; } }
+
+        .btn-cyber { border: 2px solid; transition: all 0.2s; font-family: 'Courier New', monospace; cursor: pointer; }
+        .btn-cyber-blue { border-color: #00f3ff; color: #00f3ff; }
+        .btn-cyber-blue:active { background: #00f3ff; color: #000; box-shadow: 0 0 20px #00f3ff; transform: scale(0.98); }
+        @media (hover: hover) { .btn-cyber-blue:hover { background: #00f3ff; color: #000; box-shadow: 0 0 15px #00f3ff; } }
+
+        .btn-cyber-green { border-color: #00ff9f; color: #00ff9f; }
+        .btn-cyber-green:active { background: #00ff9f; color: #000; box-shadow: 0 0 20px #00ff9f; transform: scale(0.98); }
+        @media (hover: hover) { .btn-cyber-green:hover { background: #00ff9f; color: #000; box-shadow: 0 0 15px #00ff9f; } }
+
+        .array-item { transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        
+        .item-box {
+            background: rgba(0, 243, 255, 0.05);
+            border: 1px solid rgba(0, 243, 255, 0.3);
+            transition: all 0.3s;
+        }
+        .item-box.active { border-color: #ff00ff; background: rgba(255, 0, 255, 0.15); box-shadow: 0 0 15px #ff00ff; transform: scale(1.1); z-index: 10; }
+        .item-box.discarded { opacity: 0.2; transform: scale(0.9); filter: grayscale(1); }
+        .item-box.target { border-color: #00ff9f; background: rgba(0, 255, 159, 0.25); box-shadow: 0 0 20px #00ff9f; z-index: 11; }
+
+        /* 修复滑动的核心布局 */
+        .scroll-container {
+            width: 100%;
+            height: 100%;
+            overflow-x: auto;
+            text-align: center; /* 关键：当内容不足以撑满时，使其水平居中 */
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+            scrollbar-color: #00f3ff #0a0a12;
+        }
+
+        #visual-track {
+            display: inline-flex; /* 关键：保证容器尺寸随内容扩大，并受 text-align 控制 */
+            align-items: flex-end;
+            justify-content: flex-start;
+            gap: 0.5rem;
+            padding: 2rem 2rem 5rem 2rem; /* 底部预留空间给浮动面板 */
+            min-height: 300px;
+            vertical-align: bottom;
+        }
+
+        .scroll-container::-webkit-scrollbar { height: 6px; }
+        .scroll-container::-webkit-scrollbar-track { background: rgba(10, 10, 18, 0.8); }
+        .scroll-container::-webkit-scrollbar-thumb { background: #00f3ff; border-radius: 3px; }
+    </style>
+</head>
+<body class="overflow-hidden flex flex-col-reverse md:flex-row h-screen w-screen font-mono">
+
+    <!-- 粒子背景 -->
+    <div id="tsparticles"></div>
+
+    <!-- 侧边栏控制台 -->
+    <aside class="w-full md:w-[380px] sidebar-cyber flex flex-col z-20 flex-shrink-0 h-[45%] md:h-full shadow-[5px_0_15px_rgba(0,0,0,0.5)]">
+        <!-- Logo区 -->
+        <div class="hidden md:block p-6 border-b border-cyber-blue/30 bg-gradient-to-br from-cyber-blue/10 to-transparent">
+            <h1 class="text-3xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyber-blue to-cyber-purple drop-shadow-[0_0_8px_rgba(0,243,255,0.4)]">BINARY_SEARCH</h1>
+            <p class="text-[10px] text-cyber-blue/60 mt-1 uppercase tracking-widest">Algorithm Visualizer</p>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-4 space-y-5">
+            <!-- 数据配置区 -->
+            <div class="space-y-3 p-4 bg-black/40 border border-cyber-blue/30 relative">
+                <div class="absolute top-0 left-0 w-2 h-2 border-t border-l border-cyber-blue"></div>
+                <div class="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-cyber-blue"></div>
+                
+                <label class="block text-[10px] text-cyber-blue font-bold tracking-widest uppercase">>> Array Config</label>
+                
+                <div class="flex items-center gap-3">
+                    <div class="flex-1">
+                        <p class="text-[10px] text-gray-500 mb-1">数组大小 (Max 100)</p>
+                        <input type="number" id="array-size" value="15" min="2" max="100" class="w-full bg-black border border-gray-600 text-white text-center py-2 text-sm focus:border-cyber-blue outline-none transition-colors">
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-[10px] text-gray-500 mb-1">执行操作</p>
+                        <button onclick="generateData()" class="w-full btn-cyber btn-cyber-blue py-2 text-xs font-bold uppercase tracking-wider">生成序列</button>
+                    </div>
+                </div>
+
+                <div>
+                    <p class="text-[10px] text-gray-500 mb-1">要查找的目标数值 (Target)</p>
+                    <input type="number" id="search-target" value="0" class="w-full bg-black border border-cyber-pink text-cyber-pink text-center py-2 text-base font-bold focus:border-cyber-pink outline-none transition-colors shadow-[inset_0_0_10px_rgba(255,0,255,0.1)]">
+                </div>
+            </div>
+
+            <!-- 执行控制区 -->
+            <div class="space-y-3 pt-2">
+                <label class="block text-[10px] text-cyber-green font-bold tracking-widest uppercase">>> Core Execution</label>
+                
+                <div class="flex gap-3">
+                    <button onclick="runBinarySearch()" id="run-btn" class="btn-cyber btn-cyber-green flex-1 py-3 text-sm font-black italic shadow-[0_0_10px_rgba(0,255,159,0.2)]">START_SEARCH()</button>
+                    <button onclick="resetVisual()" class="btn-cyber border-gray-600 text-gray-400 px-5 py-3 text-sm font-bold hover:border-white hover:text-white transition-colors">RESET</button>
+                </div>
+                
+                <div class="flex items-center justify-between bg-black/50 p-2 border border-gray-800 rounded">
+                    <span class="text-[10px] text-gray-400 uppercase tracking-widest">Anim Speed</span>
+                    <input type="range" id="speed-range" min="100" max="1500" value="800" class="w-3/5 accent-cyber-green cursor-pointer">
+                </div>
+            </div>
+
+            <!-- 日志区 -->
+            <div class="hidden md:flex flex-col flex-1 min-h-[140px] bg-black/80 border border-gray-700 relative mt-2">
+                <div class="px-2 py-1 bg-cyber-blue text-black font-bold text-[10px] uppercase tracking-wider flex justify-between">
+                    <span>System_Log</span>
+                    <span class="opacity-50">STDOUT</span>
+                </div>
+                <div id="log-box" class="flex-1 p-2 space-y-1 text-[10px] overflow-y-auto"></div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 主展示区 -->
+    <main class="flex-1 relative flex flex-col items-center overflow-hidden z-10 h-[55%] md:h-full">
+        <!-- 数组可视化轨 -->
+        <div class="w-full h-[70%] relative flex flex-col items-center justify-center">
+            
+            <!-- 滚动容器 -->
+            <div class="scroll-container" id="scroll-wrapper">
+                <div id="visual-track">
+                    <!-- 数组元素将被插入到这里 -->
+                </div>
+            </div>
+            
+            <!-- 指针浮动面板 -->
+            <div class="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-10 text-center bg-black/70 backdrop-blur-md px-8 py-3 rounded-xl border border-cyber-blue/30 shadow-[0_0_20px_rgba(0,243,255,0.15)] pointer-events-none">
+                <div class="flex flex-col items-center">
+                    <p class="text-[10px] text-gray-400 uppercase tracking-widest mb-1">Left</p>
+                    <p id="val-l" class="text-cyber-blue font-bold text-lg leading-none">-</p>
+                </div>
+                <div class="flex flex-col items-center px-4 border-x border-gray-700/50">
+                    <p class="text-[10px] text-gray-400 uppercase tracking-widest mb-1">Mid</p>
+                    <p id="val-m" class="text-cyber-pink font-bold text-2xl leading-none" style="text-shadow: 0 0 10px #ff00ff;">-</p>
+                </div>
+                <div class="flex flex-col items-center">
+                    <p class="text-[10px] text-gray-400 uppercase tracking-widest mb-1">Right</p>
+                    <p id="val-r" class="text-cyber-blue font-bold text-lg leading-none">-</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 伪代码区 -->
+        <div class="w-full h-[30%] bg-cyber-dark/95 border-t-2 border-cyber-blue/30 p-5 font-mono overflow-hidden flex flex-col shadow-[0_-5px_20px_rgba(0,243,255,0.05)]">
+            <div class="flex justify-between items-center mb-3">
+                <span class="text-xs text-cyber-blue font-bold uppercase tracking-widest">>> Algorithm_Execution_Stack</span>
+                <span id="step-counter" class="text-xs text-cyber-yellow font-bold border border-cyber-yellow/30 px-2 py-1 rounded bg-cyber-yellow/10">STEPS: 0</span>
+            </div>
+            <div class="flex-1 text-sm space-y-1.5 text-gray-600 pl-2 border-l-2 border-gray-800">
+                <div id="line-1">while (L <= R) {</div>
+                <div id="line-2" class="pl-6">mid = L + (R - L) / 2;</div>
+                <div id="line-3" class="pl-6">if (a[mid] == target) return mid;</div>
+                <div id="line-4" class="pl-6">if (a[mid] < target) L = mid + 1;</div>
+                <div id="line-5" class="pl-6">else R = mid - 1;</div>
+                <div id="line-6">}</div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let data = [];
+        let isRunning = false;
+        let steps = 0;
+
+        function log(msg, type = 'normal') {
+            const logBox = document.getElementById('log-box');
+            if (!logBox) return;
+            const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+            let color = 'text-gray-400';
+            if (type === 'success') color = 'text-cyber-green';
+            if (type === 'error') color = 'text-cyber-pink';
+            if (type === 'highlight') color = 'text-cyber-yellow';
+            const div = document.createElement('div');
+            div.innerHTML = `<span class="opacity-40">[${time}]</span> <span class="${color}">${msg}</span>`;
+            logBox.prepend(div);
+        }
+
+        // 生成测试数据
+        function generateData() {
+            if (isRunning) return;
+            const sizeInput = document.getElementById('array-size');
+            let size = parseInt(sizeInput.value) || 15;
+            size = Math.min(Math.max(size, 2), 100);
+            sizeInput.value = size;
+            
+            data = [];
+            let current = Math.floor(Math.random() * 20); // 随机起点
+            for (let i = 0; i < size; i++) {
+                data.push(current);
+                current += Math.floor(Math.random() * 8) + 1; // 保持严格递增
+            }
+            
+            // 自动将目标设为中间附近的值作为测试用例
+            document.getElementById('search-target').value = data[Math.floor(size / 2)];
+            renderArray();
+            resetVisual();
+            log(`已初始化 ${size} 个元素的有序数组`, 'highlight');
+        }
+
+        // 渲染数组柱状图
+        function renderArray() {
+            const track = document.getElementById('visual-track');
+            track.innerHTML = '';
+            const maxVal = Math.max(...data);
+            
+            data.forEach((val, i) => {
+                // 动态计算高度，基准高度40，最高180
+                const height = (val / maxVal * 140) + 40;
+                const item = document.createElement('div');
+                item.className = 'array-item flex flex-col items-center flex-shrink-0 w-8 md:w-12';
+                item.id = `item-${i}`;
+                item.innerHTML = `
+                    <div class="text-[9px] text-gray-500 mb-1.5 opacity-80">${i}</div>
+                    <div class="item-box w-full relative flex items-center justify-center font-bold text-xs" style="height: ${height}px">
+                        ${val}
+                    </div>
+                `;
+                track.appendChild(item);
+            });
+        }
+
+        // 重置状态
+        function resetVisual() {
+            steps = 0;
+            document.getElementById('step-counter').innerText = 'STEPS: 0';
+            document.getElementById('val-l').innerText = '-';
+            document.getElementById('val-m').innerText = '-';
+            document.getElementById('val-r').innerText = '-';
+            
+            // 移除代码高亮
+            document.querySelectorAll('[id^="line-"]').forEach(l => l.classList.remove('text-cyber-blue', 'font-bold'));
+            
+            // 还原数组样式
+            data.forEach((_, i) => {
+                const box = document.querySelector(`#item-${i} .item-box`);
+                if (box) box.className = 'item-box w-full relative flex items-center justify-center font-bold text-xs';
+            });
+            
+            // 滚动到最左边
+            const wrapper = document.getElementById('scroll-wrapper');
+            if(wrapper) wrapper.scrollLeft = 0;
+        }
+
+        // 睡眠函数控制速度
+        const sleep = () => new Promise(r => setTimeout(r, 1600 - document.getElementById('speed-range').value));
+
+        // 伪代码行高亮
+        async function highlightLine(id) {
+            document.querySelectorAll('[id^="line-"]').forEach(l => l.classList.remove('text-cyber-blue', 'font-bold'));
+            const target = document.getElementById(id);
+            if (target) target.classList.add('text-cyber-blue', 'font-bold');
+            await sleep();
+        }
+
+        // 平滑滚动定位焦点
+        function scrollToItem(index) {
+            const item = document.getElementById(`item-${index}`);
+            const wrapper = document.getElementById('scroll-wrapper');
+            if (item && wrapper) {
+                // 计算元素的水平居中位置并滚动容器
+                const itemLeft = item.offsetLeft;
+                const itemWidth = item.offsetWidth;
+                const wrapperWidth = wrapper.offsetWidth;
+                wrapper.scrollTo({
+                    left: itemLeft - (wrapperWidth / 2) + (itemWidth / 2),
+                    behavior: 'smooth'
+                });
+            }
+        }
+
+        // 核心：二分查找逻辑
+        async function runBinarySearch() {
+            if (isRunning) return;
+            isRunning = true;
+            resetVisual();
+            
+            const target = parseInt(document.getElementById('search-target').value);
+            if (isNaN(target)) {
+                log('请输入有效的查找目标值', 'error');
+                isRunning = false;
+                return;
+            }
+
+            let L = 0, R = data.length - 1;
+            let ans = -1;
+
+            log(`>>> 开始二分查找, 目标: ${target}`, 'success');
+
+            while (L <= R) {
+                steps++;
+                document.getElementById('step-counter').innerText = `STEPS: ${steps}`;
+                document.getElementById('val-l').innerText = L;
+                document.getElementById('val-r').innerText = R;
+                
+                // 渲染被淘汰的区间
+                data.forEach((_, i) => {
+                    const box = document.querySelector(`#item-${i} .item-box`);
+                    if (!box) return;
+                    if (i < L || i > R) box.classList.add('discarded');
+                    else box.classList.remove('active', 'discarded');
+                });
+
+                await highlightLine('line-1');
+                
+                let mid = Math.floor(L + (R - L) / 2);
+                document.getElementById('val-m').innerText = mid;
+                scrollToItem(mid);
+                
+                const midBox = document.querySelector(`#item-${mid} .item-box`);
+                if (midBox) midBox.classList.add('active');
+                
+                await highlightLine('line-2');
+                await highlightLine('line-3');
+
+                if (data[mid] === target) {
+                    if (midBox) midBox.classList.add('target');
+                    log(`MATCHED: 找到目标！索引为 ${mid}`, 'success');
+                    ans = mid;
+                    break;
+                }
+
+                if (data[mid] < target) {
+                    await highlightLine('line-4');
+                    log(`值(${data[mid]}) < 目标(${target}), L 右移至 ${mid + 1}`, 'normal');
+                    L = mid + 1;
+                } else {
+                    await highlightLine('line-5');
+                    log(`值(${data[mid]}) > 目标(${target}), R 左移至 ${mid - 1}`, 'normal');
+                    R = mid - 1;
+                }
+            }
+
+            if (ans === -1) {
+                log('搜索区间结束，未找到目标值。', 'error');
+                await highlightLine('line-6');
+            } else {
+                log(`算法执行完毕。结果索引: ${ans}`, 'highlight');
+                scrollToItem(ans);
+                const finalBox = document.querySelector(`#item-${ans} .item-box`);
+                if (finalBox) finalBox.classList.add('target');
+            }
+            
+            isRunning = false;
+        }
+
+        window.onload = () => {
+            // 背景粒子效果
+            if (typeof tsParticles !== 'undefined') {
+                tsParticles.load("tsparticles", {
+                    fpsLimit: 60,
+                    particles: {
+                        color: { value: "#00f3ff" },
+                        links: { enable: true, opacity: 0.1, distance: 130, color: "#00f3ff" },
+                        move: { enable: true, speed: 0.5 },
+                        number: { value: 35, density: { enable: true, area: 800 } },
+                        opacity: { value: 0.25 },
+                        size: { value: { min: 1, max: 2 } }
+                    }
+                });
+            }
+            
+            // 初始化数据
+            generateData();
+        };
+    </script>
+</body>
+</html>
